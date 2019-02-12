@@ -1,36 +1,62 @@
-def out_deco(func_type):
-    # 定义高阶函数deco,接收一个函数func作为参数（即函数内存地址）
-    def deco(func):
-        def wrapper(*args, **kwargs):  # 接收原函数内存地址被替换后传递过来的参数
-            if func_type == "N":
-                print("Mode N")
-            if func_type == "A":
-                print("Mode A")
-            func(*args, **kwargs)  # 参数重新传递给原函数以保证功能的一致性
 
-        # 返回wrapper函数的内存地址
-        return wrapper
+# 列表生成式
+x = [ i*2 for i in range(10)]  # i*2可以是其他更复杂的表达式，如将将i传递给函数func(i)
+print(x)
 
-    return deco
+# 生成器
+y = (i*2 for i in range(10))
+print(type(y))
+# 生成器每次循环只生成当前需要读取的值放入内存
+for i in y:
+    print(i)
 
-
-'''
-out_deco(N)函数返回值为deco，@out_deco(N)等同于@deco，即还是以deco作为真正的装饰器（origin1 = deco(origin1)），只是是参数func_type会向下继承;
-deco(origin1)执行后返回wrapper，即origin1 = wrapper，那么origin1("参数") = wrapper("参数")，实现最终的装饰；
-由于参数_type的继承，可以根据最初指定装饰器时的参数执行不同动作
-'''
+# 使用__next__方法访问生成器的下一个值
+z = (i*2 for i in range(5))
+print("Var z".center(20, "="))
+print(z.__next__())
+print(z.__next__())
+print(next(z))
+print(next(z))
 
 
-@out_deco("N")
-def origin1(name):
-    print("Welcome %s" % name)
+# 函数式生成器：斐波那契数列函数
+def fib(maxnum):
+    '''
+    表达式a, b = b, a + b实际上相当于
+    t = (b, a + b)
+    a = t[0]
+    b = t[1]
+    '''
+    n, a, b = 0, 0, 1
+    while n < maxnum:
+        print(b)
+        a, b = b, a + b
+        n = n + 1
+    return 'Done'
 
 
-@out_deco("A")
-def origin2(age):
-    print("Age is %s" % age)
+print("Fuction fib".center(20, "="))
+fib(10)
+
+print("Generator fib".center(20, "="))
+def fib(maxnum):
+    n, a, b = 0, 0, 1
+    while n < maxnum:
+        # yield 将函数变成了一个generator
+        yield b
+        a, b = b, a + b
+        n = n + 1
+    # 返回值用于生成器的StopIteration异常时返回值
+    return 'Done'
 
 
-# 调用origin1函数实际上等同于调用了wrapper函数，参数name同样也传递给了函数wrapper
-origin1("Bob")
-origin2(18)
+f = fib(10)
+print(f)
+print(f.__next__())
+print(f.__next__())
+print(f.__next__())
+print(f.__next__())
+for i in f:
+    print(i)
+
+# 
