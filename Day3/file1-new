@@ -1,0 +1,14 @@
+ssh user sshuser service-type allype password
+user-interface vty 0 4
+ authentication-mode aaa
+ protocol inbound ssh
+quit
+aaa
+ local-user sshuser password irreversible-cipher ABCD123456
+ local-user sshuser privilege level 3
+ local-user sshuser service-type ssh
+quit
+stelnet server enable
+ssh user sshuser
+ssh user sshuser authentication-type password
+ssh user sshuser service-type all

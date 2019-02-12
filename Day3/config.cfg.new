@@ -1,0 +1,26 @@
+ssh user sshuser service-type allype password
+user-interface vty 0 4
+ authentication-mode aaa
+ protocol inbound ssh
+quit
+aaa
+ local-user sshuser password irreversible-cipher abcd1234
+ local-user sshuser privilege level 3
+ local-user sshuser service-type ssh
+quit
+stelnet server enable
+ssh user sshuser
+ssh user sshuser authentication-type password
+ssh user sshuser service-type all
+frontend test.com
+    xxxxx
+    xxxxx
+{'backend': 'aaa.com', 'record': {'server': '192.168.88.10', 'weight': 20, 'maxconn': 300}}
+
+
+backend aaa.com
+	server 192.168.88.10 weight 20 maxconn 300
+backend test.com
+    server 192.168.100.100 weight 20 maxconn 3000
+backend abc.com
+    server 192.168.100.200 weight 20 maxconn 3000
