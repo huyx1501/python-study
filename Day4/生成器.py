@@ -58,5 +58,3 @@ print(f.__next__())
 print(f.__next__())
 for i in f:
     print(i)
-
-# 
