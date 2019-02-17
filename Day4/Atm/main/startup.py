@@ -76,6 +76,9 @@ def __main__():
 
         op = input("请选择：")
         if op.isdigit():
-            choice[int(op)]()
+            if int(op) in choice:
+                choice[int(op)]()
+            else:
+                print("非法输入")
         else:
             print("非法输入")
