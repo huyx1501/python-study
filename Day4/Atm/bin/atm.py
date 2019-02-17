@@ -1,14 +1,11 @@
 import os
 import sys
 
-# 获取程序根目录
-root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# 加入环境变量
-sys.path.append(root_path)
+ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, ROOT)
 
 # 导入模块
-from conf import config
-from main import main
+from main import startup
 
 print("Welcom to ATM")
-main.__main__()
+startup.__main__()
