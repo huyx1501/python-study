@@ -1,8 +1,11 @@
 from db import db_controller
 
-
-def auth(func):
-    pass
+# 用户临时变量，存储用户验证信息
+user_data = {
+    "user_id": "",
+    "is_login": False,
+    "user_info": {}
+}
 
 
 def lock(data):
@@ -22,24 +25,46 @@ def login():
         if info:
             if info["status"] == 0:
                 print("账户已锁定，请联系管理员")
-                return None
+                return False
             error_count = 0
             while error_count < 3:
                 password = input("Password:")
                 # 确定密码正确并且账户未锁定
                 if password == info["key"] and info["status"] == 1:
-                    return info
+                    # 账户密码匹配，修改用户临时变量
+                    user_data["user_id"] = info["id"]
+                    user_data["is_login"] = True
+                    user_data["user_info"] = info
+                    return True
                 elif password == "q":
-                    return None
+                    return False
                 else:
                     print("密码错误")
                     error_count += 1
             else:
                 print("密码错误次数达到三次，锁定账户")
                 lock(info)
-                return None
+                return False
         else:
             print("无效ID")
         login_count += 1
     else:
         print("登陆失败次数达到上限")
+
+
+# 认证装饰器
+def auth(func):
+    def wrapper(*args, **kwargs):
+        # 确定用户是否已登陆
+        if user_data["is_login"]:
+            # 已登陆用户直接执行调用的函数
+            func(*args, **kwargs)
+        else:
+            # 调用登陆流程
+            login_flag = login()
+            if login_flag:
+                func(*args, **kwargs)
+            else:
+                exit(1)
+    return wrapper
+

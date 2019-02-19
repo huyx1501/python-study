@@ -7,5 +7,5 @@ sys.path.insert(0, ROOT)
 # 导入模块
 from main import startup
 
-print("Welcom to ATM")
+print("Welcome to ATM")
 startup.__main__()

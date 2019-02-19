@@ -5,15 +5,9 @@ from . import auth
 from . import logger
 
 
-user_data = {
-    "user_id": "",
-    "is_login": False,
-    "user_info": {}
-}
-
-
+@auth.auth
 def query():
-    user_info = user_data["user_info"]
+    user_info = auth.user_data["user_info"]
     print('''
 姓名: %s
 额度: ￥%s
@@ -23,14 +17,22 @@ def query():
 ''' % (user_info["name"], user_info["credit"], user_info["balance"], user_info["pay_day"], user_info["expire_date"]))
 
 
+@auth.auth
+def billing():
+    print("开发中")
+
+
+@auth.auth
 def withdraw():
     print("开发中")
 
 
+@auth.auth
 def repay():
     print("开发中")
 
 
+@auth.auth
 def transfer():
     print("开发中")
 
@@ -40,19 +42,11 @@ def logout():
     exit(0)
 
 
+@auth.auth
 def __main__():
     '''
-    启动程序，用户登陆
+    启动程序，打印菜单
     '''
-    # 登陆成功，保存用户登陆
-    login = auth.login()
-    if login:
-        user_data["user_id"] = login["id"]
-        user_data["is_login"] = True
-        user_data["user_info"] = login
-    else:
-        exit(1)
-
     #  循环打印菜单
     while True:
         print('''
@@ -68,10 +62,11 @@ def __main__():
 
         choice = {
             1: query,
-            2: withdraw,
-            3: repay,
-            4: transfer,
-            5: logout
+            2: billing,
+            3: withdraw,
+            4: repay,
+            5: transfer,
+            6: logout
         }
 
         op = input("请选择：")
