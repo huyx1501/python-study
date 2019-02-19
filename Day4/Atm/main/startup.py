@@ -1,8 +1,9 @@
 import os
 import sys
 
-from . import auth
 from . import logger
+from . import auth
+from . import handler
 
 
 @auth.auth
@@ -18,22 +19,35 @@ def query():
 
 
 @auth.auth
-def billing():
+def billing_main():
+    print("开发中")
+
+
+# 提现主程序
+@auth.auth
+def withdraw_main():
+    # 提现金额，整数
+    amount = input("请输入提现金额：")
+    if amount.isdigit():
+        # 调用提现操作函数，返回结果保存到变量result
+        result = handler.withdraw(int(amount), auth.user_data["user_id"])
+        if result["flag"]:
+            print("提现成功，提现金额%s，手续费%s，剩余额度%s" % (amount, result["fee"], result["balance"]))
+            # 写入日志
+            logger.logger()
+        else:
+            print("提现失败，原因：%s" % result["msg"])
+    else:
+        print("非法输入")
+
+
+@auth.auth
+def repay_main():
     print("开发中")
 
 
 @auth.auth
-def withdraw():
-    print("开发中")
-
-
-@auth.auth
-def repay():
-    print("开发中")
-
-
-@auth.auth
-def transfer():
+def transfer_main():
     print("开发中")
 
 
@@ -62,10 +76,10 @@ def __main__():
 
         choice = {
             1: query,
-            2: billing,
-            3: withdraw,
-            4: repay,
-            5: transfer,
+            2: billing_main,
+            3: withdraw_main,
+            4: repay_main,
+            5: transfer_main,
             6: logout
         }
 
