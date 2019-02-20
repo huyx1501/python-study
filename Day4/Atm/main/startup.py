@@ -7,7 +7,7 @@ from . import handler
 
 
 @auth.auth
-def query_main():
+def query_info():
     user_info = handler.query(auth.user_data["user_id"])
     print('''
 姓名: %s
@@ -19,8 +19,36 @@ def query_main():
 
 
 @auth.auth
-def billing_main():
+def query_billing():
     print("开发中")
+
+
+@auth.auth
+def query_record():
+    print("开发中")
+
+
+def query_main():
+    while True:
+        print('''
+========查询========
+1. 账户信息查询
+2. 账单查询
+3. 消费明细查询
+3. 返回上层
+        ''')
+
+        op = input("请选择：")
+        if op == "1":
+            query_info()
+        elif op == "2":
+            query_billing()
+        elif op == "3":
+            query_record()
+        elif op == "4":
+            break
+        else:
+            print("非法输入")
 
 
 # 提现主程序
@@ -91,23 +119,21 @@ def __main__():
     #  循环打印菜单
     while True:
         print('''
-========Menu========
-1. 账户信息查询
-2. 账单查询
-3. 提现
-4. 还款
-5. 转账
-6. 退出
+========主菜单========
+1. 信息查询
+2. 提现
+3. 还款
+4. 转账
+5. 退出
 '''
               )
 
         choice = {
             1: query_main,
-            2: billing_main,
-            3: withdraw_main,
-            4: repay_main,
-            5: transfer_main,
-            6: logout
+            2: withdraw_main,
+            3: repay_main,
+            4: transfer_main,
+            5: logout
         }
 
         op = input("请选择：")

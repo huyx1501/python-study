@@ -11,6 +11,27 @@ def query(uid):
     return db_controller.get_info(uid)
 
 
+def query_billing(uid, month):
+    '''
+    根据ID查询用户账单
+    :param uid: 需查询账户的用户
+    :param month: 要查询的账单月份
+    :return: 返回查询到的用户账单
+    '''
+    pass
+
+
+def query_record(uid, start_time, end_time):
+    '''
+    根据ID查询用户消费明细
+    :param uid: 需查询账户的用户
+    :param start_time: 开始时间
+    :param end_time: 结束时间
+    :return: 返回查询到的记录
+    '''
+    pass
+
+
 def save(data):
     '''
     保存用户信息到数据库
