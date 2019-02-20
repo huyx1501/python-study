@@ -7,8 +7,8 @@ from . import handler
 
 
 @auth.auth
-def query():
-    user_info = auth.user_data["user_info"]
+def query_main():
+    user_info = handler.query(auth.user_data["user_id"])
     print('''
 姓名: %s
 额度: ￥%s
@@ -41,14 +41,41 @@ def withdraw_main():
         print("非法输入")
 
 
+# 还款主程序
 @auth.auth
 def repay_main():
-    print("开发中")
+    # 提现金额，整数
+    amount = input("请输入还款金额：")
+    if amount.isdigit():
+        # 调用提现操作函数，返回结果保存到变量result
+        result = handler.repay(int(amount), auth.user_data["user_id"])
+        if result["flag"]:
+            print("还款成功，还款金额%s，剩余额度%s" % (amount, result["balance"]))
+            # 写入日志
+            logger.logger()
+        else:
+            print("还款失败，原因：%s" % result["msg"])
+    else:
+        print("非法输入")
 
 
+# 转账主程序
 @auth.auth
 def transfer_main():
-    print("开发中")
+    # 转账金额，整数
+    amount = input("请输入转账金额：")
+    target = input("请输入目标账户：")
+    if amount.isdigit():
+        # 调用提现操作函数，返回结果保存到变量result
+        result = handler.transfer(int(amount), auth.user_data["user_id"], target)
+        if result["flag"]:
+            print("转账成功，转出金额%s，剩余额度%s" % (amount, result["balance"]))
+            # 写入日志
+            logger.logger()
+        else:
+            print("转账失败，原因：%s" % result["msg"])
+    else:
+        print("非法输入")
 
 
 def logout():
@@ -75,7 +102,7 @@ def __main__():
               )
 
         choice = {
-            1: query,
+            1: query_main,
             2: billing_main,
             3: withdraw_main,
             4: repay_main,

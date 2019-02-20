@@ -2,6 +2,24 @@ from conf import config
 from db import db_controller
 
 
+def query(uid):
+    '''
+    根据ID查询用户信息
+    :param uid: 需查询的用户账户
+    :return: 返回查询到的用户信息
+    '''
+    return db_controller.get_info(uid)
+
+
+def save(data):
+    '''
+    保存用户信息到数据库
+    :param data: 需写入的完整用户数据
+    :return: None
+    '''
+    return db_controller.save_info(data)
+
+
 def withdraw(amount, uid):
     '''
     用户提现操作
@@ -29,5 +47,65 @@ def withdraw(amount, uid):
             return {"flag": True, "fee": fee, "balance": balance, "msg": "提现成功"}
         else:
             return {"flag": False, "msg": "可提现额度不足"}
+    else:
+        return {"flag": False, "msg": "查询账户信息失败"}
+
+
+def repay(amount, uid):
+    '''
+    用户还款操作
+    :param amount: 还款金额，整数
+    :param uid: 还款账号
+    :return:
+        dict：
+            flag: 操作结果，布尔值
+            balance: 余额
+    '''
+    # 实时查询用户信息
+    info = db_controller.get_info(uid)
+    if info:
+        balance = info["balance"] + amount
+        # 修改账户余额信息
+        info["balance"] = balance
+        db_controller.save_info(info)
+        return {"flag": True, "balance": balance, "msg": "还款成功"}
+    else:
+        return {"flag": False, "msg": "查询账户信息失败"}
+
+
+def transfer(amount, uid, target):
+    '''
+    用户转账操作
+    :param amount: 还款金额，整数
+    :param uid: 还款账号
+    :param target: 转账目标账户
+    :return:
+        dict：
+            flag: 操作结果，布尔值
+            fee: 手续费
+            balance: 余额
+    '''
+    # 实时查询用户信息
+    target_info = db_controller.get_info(target)
+    if not target_info:
+        return {"flag": False, "msg": "目标账户不存在"}
+    info = db_controller.get_info(uid)
+    # 计算本次转账手续费
+    fee = config.transaction["trans_fee"] * amount
+    if info and target_info:
+        balance = info["balance"]
+        target_balance = target_info["balance"]
+        if balance > amount:
+            # 余额计算结果保留两位小数
+            balance = round(balance - amount - fee, 2)
+            target_balance += amount
+            # 修改账户余额信息
+            info["balance"] = balance
+            target_info["balance"] = target_balance
+            db_controller.save_info(info)
+            db_controller.save_info(target_info)
+            return {"flag": True, "fee": fee, "balance": balance, "msg": "提现成功"}
+        else:
+            return {"flag": False, "msg": "余额不足"}
     else:
         return {"flag": False, "msg": "查询账户信息失败"}

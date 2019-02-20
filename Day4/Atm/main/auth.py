@@ -1,4 +1,4 @@
-from db import db_controller
+from . import handler
 
 # 用户临时变量，存储用户验证信息
 user_data = {
@@ -8,9 +8,15 @@ user_data = {
 }
 
 
-def lock(data):
-    data["status"] = 0
-    db_controller.save_info(data)
+def lock(uid):
+    '''
+    锁定用户
+    :param uid: 需要锁定用户账户
+    :return: None
+    '''
+    info = handler.query(uid)
+    info["status"] = 0
+    handler.save(info)
 
 
 def login():
@@ -21,7 +27,7 @@ def login():
     login_count = 0
     while login_count < 3:
         uid = input("ID：")
-        info = db_controller.get_info(uid)
+        info = handler.query(uid)
         if info:
             if info["status"] == 0:
                 print("账户已锁定，请联系管理员")
@@ -43,7 +49,7 @@ def login():
                     error_count += 1
             else:
                 print("密码错误次数达到三次，锁定账户")
-                lock(info)
+                lock(uid)
                 return False
         else:
             print("无效ID")
