@@ -18,3 +18,10 @@ transaction = {
     "fee": 0.01,  # 提现手续费
     "trans_fee": 0.001  # 转账手续费
 }
+
+# 日志相关配置
+log_conf = {
+    "log_path": "%s\logs" % ROOT,  # 日志文件保存目录
+    "log_prefix": "ATMLog-",  # 日志文件前缀
+    "log_suffix": ".log"  #日志文件后缀
+}

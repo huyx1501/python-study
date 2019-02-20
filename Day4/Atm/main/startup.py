@@ -35,7 +35,7 @@ def query_main():
 1. 账户信息查询
 2. 账单查询
 3. 消费明细查询
-3. 返回上层
+4. 返回上层
         ''')
 
         op = input("请选择：")
@@ -60,11 +60,14 @@ def withdraw_main():
         # 调用提现操作函数，返回结果保存到变量result
         result = handler.withdraw(int(amount), auth.user_data["user_id"])
         if result["flag"]:
-            print("提现成功，提现金额%s，手续费%s，剩余额度%s" % (amount, result["fee"], result["balance"]))
-            # 写入日志
-            logger.logger()
+            message = "提现成功，提现金额%s，手续费%s，剩余额度%s" % (amount, result["fee"], result["balance"])
+
         else:
-            print("提现失败，原因：%s" % result["msg"])
+            message = "提现失败，原因：%s" % result["msg"]
+        # 打印消息
+        print(message)
+        # 写入日志
+        logger.logger(auth.user_data["user_id"], "INFO" if result["flag"] else "ERROR", "提现", message)
     else:
         print("非法输入")
 
@@ -72,17 +75,19 @@ def withdraw_main():
 # 还款主程序
 @auth.auth
 def repay_main():
-    # 提现金额，整数
+    # 还款金额，整数
     amount = input("请输入还款金额：")
     if amount.isdigit():
         # 调用提现操作函数，返回结果保存到变量result
         result = handler.repay(int(amount), auth.user_data["user_id"])
         if result["flag"]:
-            print("还款成功，还款金额%s，剩余额度%s" % (amount, result["balance"]))
-            # 写入日志
-            logger.logger()
+            message = "还款成功，还款金额%s，剩余额度%s" % (amount, result["balance"])
         else:
-            print("还款失败，原因：%s" % result["msg"])
+            message = "还款失败，原因：%s" % result["msg"]
+        # 打印消息
+        print(message)
+        # 写入日志
+        logger.logger(auth.user_data["user_id"], "INFO" if result["flag"] else "ERROR", "还款", message)
     else:
         print("非法输入")
 
@@ -97,11 +102,13 @@ def transfer_main():
         # 调用提现操作函数，返回结果保存到变量result
         result = handler.transfer(int(amount), auth.user_data["user_id"], target)
         if result["flag"]:
-            print("转账成功，转出金额%s，剩余额度%s" % (amount, result["balance"]))
-            # 写入日志
-            logger.logger()
+            message = "转账成功，转出金额%s，接收账户[%s]，剩余额度%s" % (amount, target, result["balance"])
         else:
-            print("转账失败，原因：%s" % result["msg"])
+            message = "转账失败，原因：%s" % result["msg"]
+        # 打印消息
+        print(message)
+        # 写入日志
+        logger.logger(auth.user_data["user_id"], "INFO" if result["flag"] else "ERROR", "转账", message)
     else:
         print("非法输入")
 
