@@ -36,7 +36,7 @@ def query_main():
 2. 账单查询
 3. 消费明细查询
 4. 返回上层
-        ''')
+''')
 
         op = input("请选择：")
         if op == "1":
@@ -120,9 +120,9 @@ def logout():
 
 @auth.auth
 def __main__():
-    '''
+    """
     启动程序，打印菜单
-    '''
+    """
     #  循环打印菜单
     while True:
         print('''
@@ -132,8 +132,7 @@ def __main__():
 3. 还款
 4. 转账
 5. 退出
-'''
-              )
+''')
 
         choice = {
             1: query_main,

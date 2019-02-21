@@ -9,21 +9,21 @@ user_data = {
 
 
 def lock(uid):
-    '''
+    """
     锁定用户
     :param uid: 需要锁定用户账户
     :return: None
-    '''
+    """
     info = handler.query(uid)
     info["status"] = 0
     handler.save(info)
 
 
 def login():
-    '''
+    """
     用户登陆流程
     :return:   认证成功返回用户信息
-    '''
+    """
     login_count = 0
     while login_count < 3:
         uid = input("ID：")

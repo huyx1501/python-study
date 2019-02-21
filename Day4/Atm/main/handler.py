@@ -3,46 +3,46 @@ from db import db_controller
 
 
 def query(uid):
-    '''
+    """
     根据ID查询用户信息
     :param uid: 需查询的用户账户
     :return: 返回查询到的用户信息
-    '''
+    """
     return db_controller.get_info(uid)
 
 
 def query_billing(uid, month):
-    '''
+    """
     根据ID查询用户账单
     :param uid: 需查询账户的用户
     :param month: 要查询的账单月份
     :return: 返回查询到的用户账单
-    '''
+    """
     pass
 
 
 def query_record(uid, start_time, end_time):
-    '''
+    """
     根据ID查询用户消费明细
     :param uid: 需查询账户的用户
     :param start_time: 开始时间
     :param end_time: 结束时间
     :return: 返回查询到的记录
-    '''
+    """
     pass
 
 
 def save(data):
-    '''
+    """
     保存用户信息到数据库
     :param data: 需写入的完整用户数据
     :return: None
-    '''
+    """
     return db_controller.save_info(data)
 
 
 def withdraw(amount, uid):
-    '''
+    """
     用户提现操作
     :param amount: 提现金额，整数
     :param uid: 提现账号
@@ -51,7 +51,7 @@ def withdraw(amount, uid):
             flag: 操作结果，布尔值
             fee: 手续费
             balance: 余额
-    '''
+    """
     # 实时查询用户信息
     info = db_controller.get_info(uid)
     # 计算本次提现手续费
@@ -73,7 +73,7 @@ def withdraw(amount, uid):
 
 
 def repay(amount, uid):
-    '''
+    """
     用户还款操作
     :param amount: 还款金额，整数
     :param uid: 还款账号
@@ -81,7 +81,7 @@ def repay(amount, uid):
         dict：
             flag: 操作结果，布尔值
             balance: 余额
-    '''
+    """
     # 实时查询用户信息
     info = db_controller.get_info(uid)
     if info:
@@ -95,7 +95,7 @@ def repay(amount, uid):
 
 
 def transfer(amount, uid, target):
-    '''
+    """
     用户转账操作
     :param amount: 还款金额，整数
     :param uid: 还款账号
@@ -105,7 +105,7 @@ def transfer(amount, uid, target):
             flag: 操作结果，布尔值
             fee: 手续费
             balance: 余额
-    '''
+    """
     # 实时查询用户信息
     target_info = db_controller.get_info(target)
     if not target_info:
