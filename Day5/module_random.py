@@ -11,10 +11,10 @@ print("randrange: ", random.randrange(5))
 print("randrange: ", random.randrange(1, 3))   # 1，2
 
 # 随机返回序列中的一个值，可以是字符串，列表，元组等
-print("choice: ",random.choice("random"))
+print("choice: ", random.choice("random"))
 
-# 随机返回序列中的指定个数值
-print("sample: ",random.sample("random", 2))
+# 随机返回序列中的指定个数值(返回值为列表)
+print("sample: ", random.sample("random", 2))
 
 # 随机返回一个指定区间内的浮点数
 print("uniform: ", random.uniform(1, 5))
