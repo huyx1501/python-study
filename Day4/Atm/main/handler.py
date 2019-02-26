@@ -1,5 +1,28 @@
 from conf import config
 from db import db_controller
+import re
+
+
+def date_verify(date):
+    """
+    验证日期的正确性
+    :param date: 输入日期
+    :return: 正确返回True，错误返回False
+    """
+    # 使用正则匹配日期格式
+    input_date = re.match("(?P<year>\d{4})-(?P<month>[01]\d)-(?P<day>[0123]\d)", date)
+    if input_date:
+        input_date = input_date.groupdict()
+    else:
+        return False
+    # 判断是否是有效的日期（无法排除错误的2月29日）
+    if int(input_date["month"]) == 0 or int(input_date["month"]) > 12 \
+            or int(input_date["day"]) == 0 or int(input_date["day"]) > 31 \
+            or (int(input_date["month"]) == 2 and int(input_date["day"]) > 29) \
+            or (int(input_date["month"]) in [4, 6, 8, 10] and int(input_date["day"]) > 30):
+        return False
+    else:
+        return True
 
 
 def query(uid):

@@ -1,10 +1,8 @@
-import os
-import sys
+import re
 
 from . import logger
 from . import auth
 from . import handler
-
 
 @auth.auth
 def query_info():
@@ -20,21 +18,32 @@ def query_info():
 
 @auth.auth
 def query_billing():
-    print("开发中")
+    pass
 
 
 @auth.auth
 def query_record():
-    print("开发中")
+    start_time = input("请输入查询起始日期（如：2018-01-01）：")
+    end_time = input("请输入查询结束日期（如：2018-01-02）：")
+    if handler.date_verify(start_time) and handler.date_verify(end_time):
+        results = logger.log_reader(auth.user_data["user_id"], start_time, end_time)
+        if results:
+            print("您的操作记录如下".center(30, "="))
+            for line in results:
+                print(line.strip())
+        else:
+            print("没有查询到结果。")
+    else:
+        print("日期格式不正确")
 
 
 def query_main():
     while True:
+        print("查询".center(30, "="))
         print('''
-========查询========
 1. 账户信息查询
 2. 账单查询
-3. 消费明细查询
+3. 操作记录查询
 4. 返回上层
 ''')
 
@@ -125,8 +134,8 @@ def __main__():
     """
     #  循环打印菜单
     while True:
+        print("主菜单".center(30, "="))
         print('''
-========主菜单========
 1. 信息查询
 2. 提现
 3. 还款
