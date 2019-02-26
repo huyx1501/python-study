@@ -82,6 +82,9 @@ print("path.isdir: ", os.path.isdir(r"C:\Windows\notepad.exe"))
 print("path.getatime: ", os.path.getatime(r"C:\Windows"))
 
 # 获取文件或目录的修改时间（时间戳）
+print("path.getctime: ", os.path.getmtime(r"C:\Windows"))
+
+# 获取文件或目录的创建时间（metadata change time ?）（时间戳）
 print("path.getctime: ", os.path.getctime(r"C:\Windows"))
 
 # 路径拼接，丢弃绝对路径前的参数(格式“C:”除外）
