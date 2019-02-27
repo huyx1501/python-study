@@ -1,1 +1,1 @@
-{"name": "Bob", "expire_date": "2021-01-01", "status": 1, "enroll_date": "2016-01-02", "credit": 15000, "balance": 15974.4, "pay_day": 22, "id": 1001, "key": "456"}
+{"enroll_date": "2016-01-02", "billing": {"2019-02": 2036, "2018-12": 1360, "2019-01": 1500}, "name": "Bob", "pay_day": 27, "id": 1001, "status": 1, "expire_date": "2021-01-01", "balance": 12964.4, "key": "456", "credit": 15000}

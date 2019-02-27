@@ -10,16 +10,24 @@ def query_info():
     user_info = handler.query(auth.user_data["user_id"])
     print('''
 姓名: %s
+注册时间: %s
 额度: ￥%s
 可用额度: ￥%s
 账单日: %s日
 有效期: %s
-''' % (user_info["name"], user_info["credit"], user_info["balance"], user_info["pay_day"], user_info["expire_date"]))
+''' % (user_info["name"], user_info["enroll_date"], user_info["credit"], user_info["balance"], user_info["pay_day"], user_info["expire_date"]))
 
 
 @auth.auth
 def query_billing():
-    pass
+    billings = handler.account(auth.user_data["user_id"], auth.user_data["user_info"]["pay_day"])
+    if billings:
+        print("账单列表".center(30, "="))
+        months = sorted(billings)
+        for i, m in enumerate(months):
+            print("%s. %s" % (i+1, m))
+        choice = int(input("请选择查询时间："))
+        print("账单金额：￥", billings[months[choice - 1]])
 
 
 @auth.auth
@@ -132,6 +140,8 @@ def __main__():
     """
     启动程序，打印菜单
     """
+    # 启动记账程序
+    handler.account(auth.user_data["user_id"], auth.user_data["user_info"]["pay_day"])
     #  循环打印菜单
     while True:
         print("主菜单".center(30, "="))

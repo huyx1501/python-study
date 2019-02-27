@@ -2,6 +2,7 @@ from conf import config
 from db import db_controller
 import re
 import calendar
+import time
 
 
 def date_verify(date):
@@ -161,3 +162,25 @@ def transfer(amount, uid, target):
             return {"flag": False, "msg": "余额不足"}
     else:
         return {"flag": False, "msg": "查询账户信息失败"}
+
+
+def account(uid, account_date):
+    """
+    用户生成用户账单
+    :param uid: 用户ID
+    :param account_date: 用户账单日
+    :return: 返回用户账单信息
+    """
+    # 查询用户信息
+    info = db_controller.get_info(uid)
+    # 确定当天是否是账单日
+    if account_date == time.localtime().tm_mday:
+        # 判断是否已经生成当月账单
+        if not info["billing"].get(time.strftime("%Y-%m", time.localtime())):
+            # 计算账单金额
+            billing = int(info["credit"]) - int(info["balance"])
+            # 插入账单金额到用户信息
+            info["billing"][time.strftime("%Y-%m", time.localtime())] = billing
+            # 保存用户信息
+            db_controller.save_info(info)
+    return info["billing"]
