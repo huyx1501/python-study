@@ -16,8 +16,14 @@ def logger(uid="", level="INFO", scene="", msg=""):
     :return: None
     """
     data = "[%s] [%s] [UID=%s] [%s] - %s" % (datetime, level, uid, scene, msg)
-    path = "%s\%s%s%s" \
-           % (config.log_conf["log_path"], config.log_conf["log_prefix"], date, config.log_conf["log_suffix"])
+    # 如果日志文件夹不存在则创建
+    if not os.path.isdir(config.log_conf["log_path"]):
+        os.mkdir(config.log_conf["log_path"])
+    # 根据配置文件的内容组合出日志文件名
+    log_file = "%s%s%s" % (config.log_conf["log_prefix"], date, config.log_conf["log_suffix"])
+    # 组合日志文件完整路径
+    path = os.path.join(config.log_conf["log_path"], log_file)
+    # 打开文件并写入
     with open(path, "a", encoding="utf-8") as log:
         log.write(data)
         log.write("\n")
