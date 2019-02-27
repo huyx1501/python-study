@@ -1,3 +1,4 @@
+import time
 from . import handler
 
 # 用户临时变量，存储用户验证信息
@@ -31,6 +32,10 @@ def login():
         if info:
             if info["status"] == 0:
                 print("账户已锁定，请联系管理员")
+                return False
+            e_date = time.mktime(time.strptime(info["expire_date"], "%Y-%m-%d"))
+            if e_date < time.time():
+                print("账户已过期，请联系管理员")
                 return False
             error_count = 0
             while error_count < 3:
