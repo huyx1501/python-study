@@ -4,6 +4,7 @@ from . import logger
 from . import auth
 from . import handler
 
+
 @auth.auth
 def query_info():
     user_info = handler.query(auth.user_data["user_id"])
@@ -70,7 +71,6 @@ def withdraw_main():
         result = handler.withdraw(int(amount), auth.user_data["user_id"])
         if result["flag"]:
             message = "提现成功，提现金额%s，手续费%s，剩余额度%s" % (amount, result["fee"], result["balance"])
-
         else:
             message = "提现失败，原因：%s" % result["msg"]
         # 打印消息
