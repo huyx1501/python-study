@@ -28,3 +28,9 @@ log_conf = {
     "log_prefix": "ATMLog-",  # 日志文件前缀
     "log_suffix": ".log"  # 日志文件后缀
 }
+
+# 管理员配置
+manager = {
+    "username": "admin",
+    "password": "123"
+}
