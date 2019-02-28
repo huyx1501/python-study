@@ -27,7 +27,8 @@ def get_info(uid):
     :return:  如果查询到数据返回该用户的信息
     """
     if config.database["db_type"] == "file":
-        user_path = "%s\%s\%s.json" % (config.database["db_path"], config.database["db_name"], uid)
+        user_db = "%s.json" % uid
+        user_path = os.path.join(config.database["db_path"], config.database["db_name"], user_db)
         return file_controller(user_path, "r")
     if config.database["db_type"] == "mysql":
         pass
@@ -40,7 +41,8 @@ def save_info(data):
     :return: None
     """
     if config.database["db_type"] == "file":
-        user_path = "%s\%s\%s.json" % (config.database["db_path"], config.database["db_name"], data["id"])
+        user_db = "%s.json" % data["uid"]
+        user_path = os.path.join(config.database["db_path"], config.database["db_name"], user_db)
         file_controller(user_path, "w", data)
 
     if config.database["db_type"] == "mysql":
