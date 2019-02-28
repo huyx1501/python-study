@@ -41,7 +41,7 @@ def save_info(data):
     :return: None
     """
     if config.database["db_type"] == "file":
-        user_db = "%s.json" % data["uid"]
+        user_db = "%s.json" % data["id"]
         user_path = os.path.join(config.database["db_path"], config.database["db_name"], user_db)
         file_controller(user_path, "w", data)
 
