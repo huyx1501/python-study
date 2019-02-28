@@ -35,9 +35,15 @@ def log_reader(uid, s_time, e_time):
     :param uid: 用户id
     :param s_time: 日志开始日期
     :param e_time: 日志结束日期
-    :return: 返回查询到的日志信息
+    :return: 返回查询到的日志信息，无日志时返回None
     """
-    file_list = os.listdir(config.log_conf["log_path"])  # 获取日志目录下的所有文件
+    # 判断日志目录是否
+    if os.path.isdir(config.log_conf["log_path"]):
+        file_list = os.listdir(config.log_conf["log_path"])  # 获取日志目录下的所有文件
+        if not file_list:
+            return None
+    else:
+        return None
     start_time = time.mktime(time.strptime(s_time, "%Y-%m-%d"))  # 输入的开始时间转化为时间戳（这里需要做异常处理，但是还没学...）
     end_time = time.mktime(time.strptime(e_time, "%Y-%m-%d"))  # 输入的结束时间转化为时间戳（这里需要做异常处理，但是还没学...）
     log_lines = []  # 定义一个日志内容的空字典
