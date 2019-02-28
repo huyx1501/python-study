@@ -1,5 +1,3 @@
-import re
-
 from . import logger
 from . import auth
 from . import handler
