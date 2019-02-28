@@ -26,8 +26,13 @@ def query_billing():
         months = sorted(billings)
         for i, m in enumerate(months):
             print("%s. %s" % (i+1, m))
-        choice = int(input("请选择查询时间："))
-        print("账单金额：￥", billings[months[choice - 1]])
+        choice = input("请选择查询时间：")
+        if choice.isdigit():
+            choice = int(choice)
+            if months.__len__() >= choice >= 1:
+                print("账单金额：￥", billings[months[choice-1]])
+                return
+        print("非法输入")
 
 
 @auth.auth
