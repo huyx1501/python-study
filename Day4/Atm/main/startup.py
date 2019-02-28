@@ -79,7 +79,7 @@ def query_main():
 def withdraw_main():
     # 提现金额，整数
     amount = input("请输入提现金额：")
-    if amount.isdigit():
+    if amount.isdigit() and int(amount) > 0:
         # 调用提现操作函数，返回结果保存到变量result
         result = handler.withdraw(int(amount), auth.user_data["user_id"])
         if result["flag"]:
@@ -99,7 +99,7 @@ def withdraw_main():
 def repay_main():
     # 还款金额，整数
     amount = input("请输入还款金额：")
-    if amount.isdigit():
+    if amount.isdigit() and int(amount) > 0:
         # 调用提现操作函数，返回结果保存到变量result
         result = handler.repay(int(amount), auth.user_data["user_id"])
         if result["flag"]:
@@ -120,7 +120,7 @@ def transfer_main():
     # 转账金额，整数
     amount = input("请输入转账金额：")
     target = input("请输入目标账户：")
-    if amount.isdigit():
+    if amount.isdigit() and int(amount) > 0:
         # 调用提现操作函数，返回结果保存到变量result
         result = handler.transfer(int(amount), auth.user_data["user_id"], target)
         if result["flag"]:
