@@ -52,12 +52,12 @@ def log_reader(uid, s_time, e_time):
         if os.path.isfile(filepath):  # 判断是否为文件
             log_time = os.path.getctime(filepath)  # 获取文件的创建时间
             if end_time >= log_time >= start_time:  # 确定创建时间在开始和结束时间之间
-                with open(filepath, "r", encoding="utf-8") as logf:  # 打开日志文件
-                    for log_line in logf:
-                        if "[UID=%s]" % uid in log_line:  # 判断UID是否在日志内容中，以确定是该用户的日志条目
-                            log_lines.append(log_line)  # 追加当前一行日志到列表中
+                with open(filepath, "r", encoding="utf-8") as log:  # 打开日志文件
+                    for log_line in log:
+                        # 是否指定uid查询
+                        if uid:
+                            if "[UID=%s]" % uid in log_line:  # 判断UID是否在日志内容中，以确定是该用户的日志条目
+                                log_lines.append(log_line)  # 追加当前一行日志到列表中
                         else:
-                            continue
-        else:
-            pass
+                            log_lines.append(log_line)
     return log_lines
