@@ -31,6 +31,8 @@ def query_billing():
                 print("账单金额：￥", billings[months[choice-1]])
                 return
         print("非法输入")
+    else:
+        print("暂无账单")
 
 
 @auth.auth
