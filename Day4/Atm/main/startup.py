@@ -46,7 +46,7 @@ def query_record():
             for line in results:
                 print(line.strip())
         else:
-            print("没有查询到结果。")
+            print("暂无操作记录")
     else:
         print("日期格式不正确")
 
@@ -135,11 +135,6 @@ def transfer_main():
         print("非法输入")
 
 
-def logout():
-    print("欢迎下次使用，再见")
-    exit(0)
-
-
 @auth.auth
 def __main__():
     """
@@ -163,7 +158,7 @@ def __main__():
             2: withdraw_main,
             3: repay_main,
             4: transfer_main,
-            5: logout
+            5: exit
         }
 
         op = input("请选择：")

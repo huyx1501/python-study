@@ -237,15 +237,17 @@ def user_del():
     info = db_controller.get_info(uid)
     if info:
         sure = input('''
-确定删除用户吗(Y/N)？
 ID:[%s]
 姓名:[%s]
 授信额度：[%s]
 可用额度：[%s]
+确定删除用户吗(Y/N)？
 ''' % (uid, info["name"], info["credit"], info["balance"]))
         if sure == "Y":
             db_controller.remove_user(uid)
             print("删除用户[%s]成功" % uid)
+    else:
+        print("输入有误或用户不存在")
 
 
 @auth
