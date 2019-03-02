@@ -69,12 +69,14 @@ def auth(func):
         # 确定用户是否已登陆
         if user_data["is_login"]:
             # 已登陆用户直接执行调用的函数
-            func(*args, **kwargs)
+            ret = func(*args, **kwargs)
+            return ret
         else:
             # 调用登陆流程
             login_flag = login()
             if login_flag:
-                func(*args, **kwargs)
+                ret = func(*args, **kwargs)
+                return ret
             else:
                 exit(1)
     return wrapper
