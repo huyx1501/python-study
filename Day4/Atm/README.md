@@ -58,3 +58,6 @@ ATM程序：
 1. 启动程序
 2. 管理员登陆
 3. 可执行用户的增删改查和日志查询操作
+
+### 流程图
+![image](https://github.com/huyx1501/python-study/raw/master/Day4/Atm/ATM%E6%A6%82%E8%A6%81%E6%B5%81%E7%A8%8B%E5%9B%BE.jpg)
