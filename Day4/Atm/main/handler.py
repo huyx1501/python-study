@@ -143,6 +143,24 @@ def transfer(amount, uid, target):
         return {"flag": False, "msg": "查询账户信息失败"}
 
 
+def order(amount, uid):
+    """
+    用户结算
+    :param amount: 结算金额
+    :param uid: 用户ID
+    :return: 操作结果，布尔值
+    """
+    # 实时查询用户信息
+    info = db_controller.get_info(uid)
+    if info and info["balance"] > amount:
+        # 修改账户余额信息
+        info["balance"] = info["balance"] - amount
+        if db_controller.save_info(info):
+            return {"flag": True, "msg": "结算成功，剩余额度[%s]" % info["balance"]}
+    else:
+        return {"flag": False, "msg": "结算失败，请重试"}
+
+
 def account(uid, account_date):
     """
     用户生成用户账单
