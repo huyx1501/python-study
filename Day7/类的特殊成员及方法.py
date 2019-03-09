@@ -34,8 +34,8 @@ print(dog1)
 dog1()
 
 
-# =========================自定义列表=====================
-class CustomList(object):
+# =========================自定义字典=====================
+class CustomDict(object):
     def __init__(self):
         self.data = {}  # 初始化一个空字典用于存储数据
 
@@ -50,11 +50,11 @@ class CustomList(object):
 
 
 # 实例化
-list1 = CustomList()
+dic1 = CustomDict()
 # 触发__setitem__方法
-list1["name"] = "Bob"
+dic1["name"] = "Bob"
 # 触发__getitem__方法
-print(list1["name"])
+print(dic1["name"])
 # 触发__delitem__方法
-del list1["name"]
-print(list1["name"])
+del dic1["name"]
+print(dic1["name"])
