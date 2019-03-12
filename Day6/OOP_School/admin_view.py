@@ -1,23 +1,64 @@
 import OOP_School
+import db_handler
+
+
+def init():
+    """
+    如果数据出现错误或第一次运行程序，需进行初始化的必要对象
+    执行此方法会覆盖所有现有数据
+    :return: None
+    """
+    # 初始化课程
+    Java = OOP_School.Courses("Java", 15000, 60)
+    Go = OOP_School.Courses("Go", 20000, 80)
+    Python = OOP_School.Courses("Python", 18000, 60)
+    OOP_School.course_list = [Java, Go, Python]
+    db_handler.save_info(OOP_School.course_list, "course_list")  # 写入课程信息到文件
+
+    # 初始化学校
+    school1 = OOP_School.Schools("武当派", "武当山")
+    school2 = OOP_School.Schools("全真教", "终南山")
+    OOP_School.school_list = [school1, school2]
+    db_handler.save_info(OOP_School.school_list, "school_list")  # 写入学校信息到文件
+
+    # 初始化教师
+    t1 = OOP_School.Teachers("张三丰", 38, "M", Java)
+    t2 = OOP_School.Teachers("李清照", 35, "F", Go)
+    t3 = OOP_School.Teachers("王重阳", 45, "M", Python)
+    OOP_School.teacher_list = [t1, t2, t3]
+    db_handler.save_info(OOP_School.teacher_list, "teacher_list")  # 写入教师信息到文件
+
+    # 初始化学生
+    s1 = OOP_School.Students("大雄", 15, "M")
+    s2 = OOP_School.Students("胖虎", 17, "M")
+    s3 = OOP_School.Students("静香", 14, "F")
+    OOP_School.student_list = [s1, s2, s3]
+    db_handler.save_info(OOP_School.student_list, "student_list")  # 写入学生信息到文件
 
 
 def hire_teacher(school):
-    teachers = OOP_School.teacher_list
-    free_teachers = []
+    """
+    操作指定学校进行教师的选择聘用
+    :param school: 要招聘教师的学校
+    :return: None
+    """
+    teachers = OOP_School.teacher_list  # 从教师列表读取教师对象信息
+    free_teachers = []  # 未被雇佣的教师列表
     if teachers:
         for teacher in teachers:
-            if teacher.school:
+            if teacher.school:  # 如果教师已经存在学校信息则忽略
                 continue
             else:
-                free_teachers.append(teacher)
+                free_teachers.append(teacher)  # 将空闲教师加入列表
         if free_teachers:
+            # 打印空闲教师列表中的新教师信息
             for i, teacher in enumerate(free_teachers):
                 print("%s. %s 擅长课程：%s" % (i+1, teacher.name, teacher.course.name))
             try:
                 choice = int(input("请选择要聘用的老师："))
                 salary = int(input("请输入工资："))
                 teacher = free_teachers[choice-1]
-                school.hire(teacher, salary)
+                school.hire(teacher, salary)  # 雇佣教师
             except ValueError as e:
                 print("非法输入")
             except IndexError as e:
@@ -29,8 +70,13 @@ def hire_teacher(school):
 
 
 def manage_class(school):
+    """
+    对学校的课程（班级）进行管理
+    :param school: 指定的学校
+    :return: None
+    """
     classes = school.classes  # 获取学校所有班级
-    if classes:
+    if classes:  # 判断学校是否已经建立了班级
         for i, cl in enumerate(classes):  # 循环打印出所有班级
             print("%s. %s" % (i + 1, cl.name))
         try:
@@ -50,10 +96,12 @@ def manage_class(school):
             choice = int(input("请选择要修改的项目："))
             if choice == 1:
                 period = int(input("请输入新的课程周期："))
-                cl.course.period = period
-            if choice == 2:
+                cl.course.period = period  # 修改班级中课程的周期
+            elif choice == 2:
                 price = int(input("请输入新的课程价格："))
-                cl.course.price = price
+                cl.course.price = price  # 修改班级中课程的价格
+            else:
+                print("无效输入")
         except ValueError as e:
             print("非法输入")
         except IndexError as e:
@@ -63,6 +111,11 @@ def manage_class(school):
 
 
 def query_class(school):
+    """
+    查询指定学校已开设的班级信息
+    :param school: 指定的学校
+    :return: None
+    """
     classes = school.classes  # 获取学校所有班级
     if classes:
         for i, cl in enumerate(classes):  # 循环打印出所有班级
@@ -86,7 +139,14 @@ def query_class(school):
 
 
 def main():
-    for i, school in enumerate(OOP_School.school_list):
+    # 判断是否存在基础数据，如果没有，提示进行初始化操作
+    if not OOP_School.school_list:
+        choice = input("天地混沌，啥都没有，是否要开天辟地?(y/n)")
+        if choice == ("y" or "Y"):
+            init()  # 初始化（开天辟地！）
+        else:
+            exit("洗洗睡吧")  # 啥都没有就别玩了
+    for i, school in enumerate(OOP_School.school_list):  # 打印学校信息
         print("%d. %s %s" % (i+1, school.addr, school.name))
     try:
         choice = int(input("请选择操作学校："))
@@ -101,8 +161,11 @@ def main():
             choice = int(input(">>"))
             if choice == 1:
                 hire_teacher(school)
+                db_handler.save_info(OOP_School.teacher_list, "teacher_list")  # 保存教师信息
+                db_handler.save_info(OOP_School.school_list, "school_list")  # 保存学校信息
             elif choice == 2:
                 manage_class(school)
+                db_handler.save_info(OOP_School.school_list, "school_list")  # 保存学校信息
             elif choice == 3:
                 query_class(school)
             elif choice == 4:

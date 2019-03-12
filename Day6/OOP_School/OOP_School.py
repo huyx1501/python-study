@@ -1,3 +1,6 @@
+import db_handler
+
+
 class Schools(object):
     """
     学校类
@@ -90,24 +93,8 @@ class Teachers(object):
             print("还未开始上课")
 
 
-# 初始化课程
-Java = Courses("Java", 15000, 60)
-Go = Courses("Go", 20000, 80)
-Python = Courses("Python", 18000, 60)
-
-# 初始化学校
-School1 = Schools("武当派", "武当山")
-School2 = Schools("全真教", "终南山")
-school_list = [School1, School2]
-
-# 初始化学生
-s1 = Students("大雄", 15, "M")
-s2 = Students("胖虎", 17, "M")
-s3 = Students("静香", 14, "F")
-student_list = [s1, s2, s3]
-
-# 初始化教师
-t1 = Teachers("张三丰", 38, "M", Java)
-t2 = Teachers("李清照", 35, "F", Go)
-t3 = Teachers("王重阳", 45, "M", Python)
-teacher_list = [t1, t2, t3]
+# 从存储的文件载入以前的对象信息
+school_list = db_handler.load_info("school_list")
+teacher_list = db_handler.load_info("teacher_list")
+student_list = db_handler.load_info("student_list")
+course_list = db_handler.load_info("course_list")

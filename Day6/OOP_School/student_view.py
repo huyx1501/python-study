@@ -1,13 +1,22 @@
 import OOP_School
+import db_handler
 
 
 def apply(student):
+    """
+    学生报名
+    :param student: 要报名的学生
+    :return: None
+    """
     # 循环打印出学校列表中的项目
     for i, school in enumerate(OOP_School.school_list):
         print("%s. %s" % (i + 1, school.name))
     try:
         choice = input("请选择学校：")
         school = OOP_School.school_list[int(choice) - 1]  # 选择学校
+        if not school.classes:  # 如果学校的班级属性为空则表示学校还没有开班
+            print("该学校暂无课程")
+            return
         print(("%s课程表" % school.name).center(50, "="))
         for i, cl in enumerate(school.classes):  # 循环打印出学校的全部班级（课程）
             print("%s. 课程：%s  费用：%s  讲师：%s" % (i + 1, cl.name, cl.course.price, cl.teacher.name))
@@ -34,6 +43,11 @@ def apply(student):
 
 
 def query_class(student):
+    """
+    查询已报名过的班级信息
+    :param student: 需要查询的学生
+    :return: None
+    """
     classes = student.classes  # 获取学生已经报名过的所有班级
     if classes:
         for i, cl in enumerate(classes):  # 循环打印出所有已报名班级
@@ -72,6 +86,8 @@ def main():
             choice = int(input(">>"))
             if choice == 1:
                 apply(student)
+                db_handler.save_info(OOP_School.student_list, "student_list")  # 保存学生信息
+                db_handler.save_info(OOP_School.school_list, "school_list")  # 保存学校信息
             elif choice == 2:
                 query_class(student)
             elif choice == 3:
