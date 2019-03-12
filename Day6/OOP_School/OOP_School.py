@@ -111,8 +111,3 @@ t1 = Teachers("张三丰", 38, "M", Java)
 t2 = Teachers("李清照", 35, "F", Go)
 t3 = Teachers("王重阳", 45, "M", Python)
 teacher_list = [t1, t2, t3]
-
-# 学校聘用教师
-School1.hire(t1, 30000)
-School1.hire(t2, 28000)
-School2.hire(t3, 33000)
