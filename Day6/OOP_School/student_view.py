@@ -37,7 +37,7 @@ def query_class(student):
     classes = student.classes  # 获取学生已经报名过的所有班级
     if classes:
         for i, cl in enumerate(classes):  # 循环打印出所有已报名班级
-            print("%s. %s" % (i+1, cl.course.name))
+            print("%s. %s" % (i+1, cl.name))
         try:
             choice = int(input("请选择要查询的班级："))
             cl = classes[choice-1]
@@ -72,10 +72,12 @@ def main():
             choice = int(input(">>"))
             if choice == 1:
                 apply(student)
-            if choice == 2:
+            elif choice == 2:
                 query_class(student)
-            if choice == 3:
+            elif choice == 3:
                 return
+            else:
+                print("无效输入")
     except ValueError as e:
         print("非法输入")
     except IndexError as e:

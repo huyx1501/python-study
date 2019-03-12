@@ -55,14 +55,16 @@ def main():
             choice = int(input(">>"))
             if choice == 1:
                 start_class(teacher)
-            if choice == 2:
+            elif choice == 2:
                 finish_class(teacher)
-            if choice == 3:
+            elif choice == 3:
                 query_class(teacher)
-            if choice == 4:
+            elif choice == 4:
                 score(teacher)
-            if choice == 5:
+            elif choice == 5:
                 return
+            else:
+                print("无效输入")
     except ValueError as e:
         print("非法输入")
     except IndexError as e:
