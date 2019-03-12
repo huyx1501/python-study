@@ -13,7 +13,7 @@ def finish_class(teacher):
 def query_class(teacher):
     """
    查询教师所在的班级信息
-    :param school: 指定的教师
+    :param teacher: 指定的教师
     :return: None
     """
     cl = teacher.classes  # 获取教师所教的班级
@@ -82,7 +82,7 @@ def main():
                     print("您还未被学校雇佣")
                     continue
                 score(teacher)
-                db_handler.save_info(OOP_School.student_list, "student_ist")  # 保存学生信息
+                db_handler.save_info(OOP_School.student_list, "student_list")  # 保存学生信息
             elif choice == 5:
                 return
             else:
