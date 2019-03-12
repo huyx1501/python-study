@@ -22,7 +22,7 @@ with open("pickle.dump", "wb") as fw:
 
 # pickle反序列化
 with open("pickle.dump", "rb") as fr:
-    data = pickle.loads(fr.read())  # 等同于pickle.load(dic1, fr)
+    data = pickle.loads(fr.read())  # 等同于pickle.load(fr)
     print(data)
     # 还原迭代器对象并调用其__next__方法
     print(data["iter1"].__next__())
