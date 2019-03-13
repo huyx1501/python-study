@@ -13,27 +13,27 @@ def init():
     Go = OOP_School.Courses("Go", 20000, 80)
     Python = OOP_School.Courses("Python", 18000, 60)
     OOP_School.course_list = [Java, Go, Python]
-    db_handler.save_info(OOP_School.course_list, "course_list")  # 写入课程信息到文件
 
     # 初始化学校
     school1 = OOP_School.Schools("武当派", "武当山")
     school2 = OOP_School.Schools("全真教", "终南山")
     OOP_School.school_list = [school1, school2]
-    db_handler.save_info(OOP_School.school_list, "school_list")  # 写入学校信息到文件
 
     # 初始化教师
     t1 = OOP_School.Teachers("张三丰", 38, "M", Java)
     t2 = OOP_School.Teachers("李清照", 35, "F", Go)
     t3 = OOP_School.Teachers("王重阳", 45, "M", Python)
     OOP_School.teacher_list = [t1, t2, t3]
-    db_handler.save_info(OOP_School.teacher_list, "teacher_list")  # 写入教师信息到文件
 
     # 初始化学生
     s1 = OOP_School.Students("大雄", 15, "M")
     s2 = OOP_School.Students("胖虎", 17, "M")
     s3 = OOP_School.Students("静香", 14, "F")
     OOP_School.student_list = [s1, s2, s3]
-    db_handler.save_info(OOP_School.student_list, "student_list")  # 写入学生信息到文件
+
+    # 组合数据并保存到文件
+    OOP_School.data = {"school_list": OOP_School.school_list, "teacher_list": OOP_School.teacher_list, "student_list": OOP_School.student_list, "course_list": OOP_School.course_list}
+    db_handler.save_info(OOP_School.data, "data")
 
 
 def hire_teacher(school):
@@ -86,9 +86,10 @@ def manage_class(school):
             print("""课程名称： %s
 课程周期： %s课时
 课程价格： %s元
-讲师： %s
+讲师：%s
 学员人数： %d人
-""" % (cl.name, cl.course.period, cl.course.price, cl.teacher.name, len(cl.student)))
+当前状态： %s
+""" % (cl.name, cl.course.period, cl.course.price, cl.teacher.name, len(cl.student), "上课中" if cl.status == 1 else "已下课"))
             print("""
 1. 课程周期
 2. 课程价格
@@ -161,11 +162,10 @@ def main():
             choice = int(input(">>"))
             if choice == 1:
                 hire_teacher(school)
-                db_handler.save_info(OOP_School.teacher_list, "teacher_list")  # 保存教师信息
-                db_handler.save_info(OOP_School.school_list, "school_list")  # 保存学校信息
+                db_handler.save_info(OOP_School.data, "data")  # 保存信息
             elif choice == 2:
                 manage_class(school)
-                db_handler.save_info(OOP_School.school_list, "school_list")  # 保存学校信息
+                db_handler.save_info(OOP_School.data, "data")  # 保存信息
             elif choice == 3:
                 query_class(school)
             elif choice == 4:

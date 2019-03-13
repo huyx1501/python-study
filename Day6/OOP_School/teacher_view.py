@@ -23,14 +23,18 @@ def query_class(teacher):
 课程价格： %s元
 所在学校： %s
 学员人数： %d人
-""" % (cl.name, cl.course.period, cl.course.price, cl.school.name, len(cl.student)))
+当前状态： %s
+""" % (cl.name, cl.course.period, cl.course.price, cl.school.name, len(cl.student), "上课中" if cl.status == 1 else "已下课"))
 
 
 def score(teacher):
     students = teacher.classes.student  # 获取班级里面所有学生的列表
     if students:
         for i, student in enumerate(students):  # 循环打印出所有学生
-            print("%s. %s" % (i+1, student.name))
+            try:
+                print("%s. %s %s" % (i+1, student.name, student.score[teacher.classes]))
+            except KeyError:  # 如果student.score没有teacher.classes这个key表示在本班未对其打过分
+                print("%s. %s %s" % (i + 1, student.name, "未打分"))
         try:
             choice = int(input("请选择学生："))
             selected = students[choice-1]
@@ -65,13 +69,13 @@ def main():
                     print("您还未被学校雇佣")
                     continue
                 start_class(teacher)  # 调用上课方法
-                db_handler.save_info(OOP_School.school_list, "school_list")  # 保存学校信息
+                db_handler.save_info(OOP_School.data, "school_data")  # 保存信息
             elif choice == 2:
                 if not teacher.school:
                     print("您还未被学校雇佣")
                     continue
                 finish_class(teacher)  # 调用下课方法
-                db_handler.save_info(OOP_School.school_list, "school_list")  # 保存学校信息
+                db_handler.save_info(OOP_School.data, "school_data")  # 保存信息
             elif choice == 3:
                 if not teacher.school:
                     print("您还未被学校雇佣")
@@ -82,7 +86,7 @@ def main():
                     print("您还未被学校雇佣")
                     continue
                 score(teacher)
-                db_handler.save_info(OOP_School.student_list, "student_list")  # 保存学生信息
+                db_handler.save_info(OOP_School.data, "school_data")  # 保存信息
             elif choice == 5:
                 return
             else:

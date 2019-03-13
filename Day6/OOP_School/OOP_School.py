@@ -93,8 +93,14 @@ class Teachers(object):
             print("还未开始上课")
 
 
-# 从存储的文件载入以前的对象信息
-school_list = db_handler.load_info("school_list")
-teacher_list = db_handler.load_info("teacher_list")
-student_list = db_handler.load_info("student_list")
-course_list = db_handler.load_info("course_list")
+school_list = []
+teacher_list = []
+student_list = []
+course_list = []
+data = db_handler.load_info("school_data")  # 从文件加载旧数据
+if data:
+    school_list = data["school_list"]
+    teacher_list = data["teacher_list"]
+    student_list = data["student_list"]
+    course_list = data["course_list"]
+

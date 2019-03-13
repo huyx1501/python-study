@@ -61,8 +61,11 @@ def query_class(student):
 课程价格： %s元
 所在学校： %s
 讲师： %s
-学员人数： %d人
-""" % (cl.name, cl.course.period, cl.course.price, cl.school.name, cl.teacher.name, len(cl.student)))
+学员人数： %d人""" % (cl.name, cl.course.period, cl.course.price, cl.school.name, cl.teacher.name, len(cl.student)))
+            try:
+                print("在本班分数： %d分" % student.score[cl])
+            except KeyError:
+                print("在本班分数： 未打分")
         except ValueError as e:
             print("非法输入")
         except IndexError as e:
@@ -86,8 +89,7 @@ def main():
             choice = int(input(">>"))
             if choice == 1:
                 apply(student)
-                db_handler.save_info(OOP_School.student_list, "student_list")  # 保存学生信息
-                db_handler.save_info(OOP_School.school_list, "school_list")  # 保存学校信息
+                db_handler.save_info(OOP_School.data, "school_data")  # 保存信息
             elif choice == 2:
                 query_class(student)
             elif choice == 3:
