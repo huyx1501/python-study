@@ -14,8 +14,13 @@ while True:
     if len(data) == 0: continue  # 如果输入为空则不发送
     client.send(data.encode("utf-8"))
     # 接收服务器返回的数据
-    data_size = int(client.recv(1024).decode("utf-8"))
-    if data_size:
+    receive_data = client.recv(1024).decode("utf-8")
+    try:
+        data_size = int(receive_data)
+    except ValueError:
+        print(receive_data)
+        continue
+    else:
         client.send(b"ACK")
     print("结果长度： %s" % data_size)
     received_size = 0
