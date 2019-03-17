@@ -26,7 +26,9 @@ class MyHandler(socketserver.BaseRequestHandler):
 
 
 # 实例化一个socketserver对象
-server = socketserver.TCPServer(("127.0.0.1", 8888), MyHandler)
+# server = socketserver.TCPServer(("127.0.0.1", 8888), MyHandler)  # 单进程版，一次只能处理一个请求
+server = socketserver.ThreadingTCPServer(("127.0.0.1", 8888), MyHandler)  # 多线程版
+# server = socketserver.ForkingTCPServer(("127.0.0.1", 8888), MyHandler)  # 多进程版，只能在Linux系统下使用
 print("等待连接...")
 server.serve_forever()  # 开始监听
 
