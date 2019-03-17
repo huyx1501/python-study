@@ -28,4 +28,4 @@ OOP_School
 ```
 
 ### 对象关系图
-![image](https://github.com/huyx1501/python-study/raw/dev/Day6/OOP_School/OPP_School%E5%AF%B9%E8%B1%A1%E5%85%B3%E7%B3%BB%E5%9B%BE.jpg)
+![image](https://github.com/huyx1501/python-study/raw/master/Day6/OOP_School/OPP_School%E5%AF%B9%E8%B1%A1%E5%85%B3%E7%B3%BB%E5%9B%BE.jpg)
