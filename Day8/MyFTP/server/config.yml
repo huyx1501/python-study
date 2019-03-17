@@ -1,0 +1,20 @@
+---
+  server:
+    bind: 0.0.0.0
+    port: 8888
+
+  user:
+    - name: Bob
+      key: 123456
+      home: bob
+      quota: -1
+
+    - name: Tom
+      key: 123456
+      home: tom
+      quota: 500K
+
+    - name: Jerry
+      key: 123456
+      home: jerry
+      quota: 100M
