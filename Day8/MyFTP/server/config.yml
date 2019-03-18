@@ -2,8 +2,9 @@
   server:
     bind: 0.0.0.0
     port: 8888
+    data_dir:
 
-  user:
+  users:
     - name: Bob
       key: 123456
       home: bob

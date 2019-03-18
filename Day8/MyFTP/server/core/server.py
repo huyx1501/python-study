@@ -9,10 +9,49 @@ import yaml  # 用于解析配置文件
 
 # 定义Handler类
 class TCPHandler(socketserver.BaseRequestHandler):
-    def put(self, filename):
-        self.request.send(b"200")
+    def auth(self, config):
+        users = config["users"]
+        self.request.send(b"login")
+        auth_data = self.request.recv(1024).decode().split()  # 接收认证消息
+        if len(auth_data) < 2:
+            self.request.send(b"failed")
+        else:
+            user_info = users.get(auth_data[0])  # 根据用户名查询用户信息
+            if user_info:
+                password = user_info.get("key")  # 取出用户密码
+                if password == auth_data[1]:
+                    self.request.send(b"Success")
+                    return user_info
 
-    def get(self, filename):
+    def put(self, *args):
+        if args:
+            params = args[0]
+            filename = params["filename"]
+            size = params["size"]
+            if os.path.isfile(filename):
+                self.request.send(b"409")  # 资源已存在
+            else:
+                try:
+                    with open(filename, "wb") as f:
+                        self.request.send(b"200")  # 请求正确
+                        received_size = 0
+                        while received_size < size:
+                            if size - received_size > 1024:
+                                buffer_size = 1024
+                            else:
+                                buffer_size = size - received_size
+                            # 开始接收数据
+                            _data = self.request.recv(buffer_size)
+                            received_size += len(_data)
+                            f.write(_data)
+                        else:
+                            print("文件[%s]接收完成" % filename)
+                except PermissionError:
+                    self.request.send(b"403")  # 拒绝访问
+        else:
+            self.request.send(b"400")  # 命令参数有误
+
+    def get(self, *args):
         self.request.send(b"200")
 
     def pwd(self, *args):
@@ -21,25 +60,29 @@ class TCPHandler(socketserver.BaseRequestHandler):
     def ls(self, path=None):
         self.request.send(b"200")
 
-    def cd(self, path):
+    def cd(self, *args):
         self.request.send(b"200")
 
     def handle(self):
-        while True:
-            try:
-                message = self.request.recv(1024).encode().split()
-                cmd = message[0]
-                if hasattr(self, cmd):
-                    func = getattr(self, cmd)
-                    if len(message) > 1:
-                        func(message[1])
+        auth_times = 0
+        while auth_times < 3:
+            auth_data = self.auth(conf)  # 用户登陆并获取信息
+            auth_times += 1
+            while auth_data:
+                try:
+                    message = self.request.recv(1024).encode().split()
+                    cmd = message[0]
+                    if hasattr(self, cmd):
+                        func = getattr(self, cmd)
+                        if len(message) > 1:
+                            func(message[1])
+                        else:
+                            func()
                     else:
-                        func()
-                else:
-                    self.request.send(b"400")  # 当命令不存在时返回错误代码400
-            except (ConnectionResetError, ConnectionAbortedError) as e:
-                print("客户端连接中断 ", e)
-                break
+                        self.request.send(b"405")  # 当命令不存在时返回错误代码405
+                except (ConnectionResetError, ConnectionAbortedError) as e:
+                    print("客户端连接中断 ", e)
+                    break
 
 
 def config_parser():
@@ -54,9 +97,20 @@ def config_parser():
             return yaml.load(f, yaml.CLoader if yaml.CLoader else yaml.Loader)  # 读取并返回文件内容
 
 
-def main():
-    config = config_parser()  # 获取配置文件内容
-    print(config)
+def initial(config):
+    data_dir = config["server"]["data_dir"]
+    if not (data_dir and os.path.isabs(data_dir)):  # 目录未配置或者未配置为绝对路径
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        data_dir = os.path.join(root, data_dir if data_dir else "data")  # 默认数据目录为服务器根目录下的data
+    users = config["users"]
+    for user in users:
+        home_dir = user["home"]  # 获取所有用户的家目录
+        home_dir = os.path.join(data_dir, home_dir)
+        if not os.path.isdir(home_dir):  # 目录不存在时为用户创建家目录
+            os.makedirs(home_dir, mode=0o755)
+
+
+def main(config):
     try:
         ip = str(config["server"]["bind"])  # 取出配置中的监听IP
         port = int(config["server"]["port"])  # 取出配置中的监听端口
@@ -69,4 +123,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    conf = config_parser()  # 获取配置文件内容
+    initial(conf)
+    main(conf)
