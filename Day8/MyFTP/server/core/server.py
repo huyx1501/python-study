@@ -11,17 +11,24 @@ import yaml  # 用于解析配置文件
 class TCPHandler(socketserver.BaseRequestHandler):
     def auth(self, config):
         users = config["users"]
-        self.request.send(b"login")
-        auth_data = self.request.recv(1024).decode().split()  # 接收认证消息
-        if len(auth_data) < 2:
-            self.request.send(b"failed")
-        else:
-            user_info = users.get(auth_data[0])  # 根据用户名查询用户信息
-            if user_info:
-                password = user_info.get("key")  # 取出用户密码
-                if password == auth_data[1]:
-                    self.request.send(b"Success")
-                    return user_info
+        self.request.send(b"Login")
+        login_times = 0
+        while login_times < 3:
+            try:
+                auth_data = self.request.recv(1024).decode().split()  # 接收认证消息
+                user_info = users[auth_data[0]]  # 根据用户名查询用户信息
+                if user_info:
+                    password = user_info["key"]  # 取出用户密码
+                    if password == auth_data[1]:
+                        pwd = user_info["home"]
+                        self.request.send(("Success" + " " + pwd).encode("utf-8"))
+                        return user_info
+                    else:
+                        self.request.send("密码错误".encode("utf-8"))
+                        login_times += 1
+            except KeyError:
+                self.request.send("用户名不存在".encode("utf-8"))
+                login_times += 1
 
     def put(self, *args):
         if args:
@@ -64,25 +71,23 @@ class TCPHandler(socketserver.BaseRequestHandler):
         self.request.send(b"200")
 
     def handle(self):
-        auth_times = 0
-        while auth_times < 3:
+        print("连接已建立 %s" % str(self.client_address))
+        try:
             auth_data = self.auth(conf)  # 用户登陆并获取信息
-            auth_times += 1
             while auth_data:
-                try:
-                    message = self.request.recv(1024).encode().split()
-                    cmd = message[0]
-                    if hasattr(self, cmd):
-                        func = getattr(self, cmd)
-                        if len(message) > 1:
-                            func(message[1])
-                        else:
-                            func()
+                message = self.request.recv(1024).decode("utf-8").split()  # 获取客户端命令和参数
+                cmd = message[0]
+                if hasattr(self, cmd):  # 检查命令是否可用
+                    func = getattr(self, cmd)
+                    if len(message) > 1:
+                        func(message[1])  # 有参数命令
                     else:
-                        self.request.send(b"405")  # 当命令不存在时返回错误代码405
-                except (ConnectionResetError, ConnectionAbortedError) as e:
-                    print("客户端连接中断 ", e)
-                    break
+                        func()  # 无参数命令
+                else:
+                    self.request.send(b"405")  # 当命令不存在时返回错误代码405
+        except (ConnectionResetError, ConnectionAbortedError, IndexError) as e:
+            print("客户端连接中断...")
+            return
 
 
 def config_parser():
@@ -104,7 +109,7 @@ def initial(config):
         data_dir = os.path.join(root, data_dir if data_dir else "data")  # 默认数据目录为服务器根目录下的data
     users = config["users"]
     for user in users:
-        home_dir = user["home"]  # 获取所有用户的家目录
+        home_dir = users[user]["home"]  # 获取所有用户的家目录
         home_dir = os.path.join(data_dir, home_dir)
         if not os.path.isdir(home_dir):  # 目录不存在时为用户创建家目录
             os.makedirs(home_dir, mode=0o755)
