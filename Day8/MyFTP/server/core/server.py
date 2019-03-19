@@ -10,6 +10,11 @@ import yaml  # 用于解析配置文件
 # 定义Handler类
 class TCPHandler(socketserver.BaseRequestHandler):
     def auth(self, config):
+        """
+        用于进行远程用户认证
+        :param config: 字典格式的配置信息，应该包含所有用户
+        :return: 认证通过返回用户信息
+        """
         users = config["users"]
         self.request.send(b"Login")
         login_times = 0
@@ -33,8 +38,8 @@ class TCPHandler(socketserver.BaseRequestHandler):
     def put(self, *args):
         if args:
             params = args[0]
-            filename = params["filename"]
-            size = params["size"]
+            filename = params[1]  # 第二个参数为文件名
+            size = int(params[2])  # 第三个参数为文件大小
             if os.path.isfile(filename):
                 self.request.send(b"409")  # 资源已存在
             else:
@@ -61,9 +66,6 @@ class TCPHandler(socketserver.BaseRequestHandler):
     def get(self, *args):
         self.request.send(b"200")
 
-    def pwd(self, *args):
-        self.request.send(b"200")
-
     def ls(self, path=None):
         self.request.send(b"200")
 
@@ -80,7 +82,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 if hasattr(self, cmd):  # 检查命令是否可用
                     func = getattr(self, cmd)
                     if len(message) > 1:
-                        func(message[1])  # 有参数命令
+                        func(message)  # 有参数命令
                     else:
                         func()  # 无参数命令
                 else:
@@ -103,6 +105,11 @@ def config_parser():
 
 
 def initial(config):
+    """
+    初始化用户目录
+    :param config: 字典格式的配置信息
+    :return: None
+    """
     data_dir = config["server"]["data_dir"]
     if not (data_dir and os.path.isabs(data_dir)):  # 目录未配置或者未配置为绝对路径
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -116,6 +123,11 @@ def initial(config):
 
 
 def main(config):
+    """
+    主程序
+    :param config: 字典格式的配置信息
+    :return: None
+    """
     try:
         ip = str(config["server"]["bind"])  # 取出配置中的监听IP
         port = int(config["server"]["port"])  # 取出配置中的监听端口

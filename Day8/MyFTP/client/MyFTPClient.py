@@ -3,7 +3,7 @@
 # Author: Bob
 
 import socket
-
+import os
 
 class FtpClient(object):
     def __init__(self):
@@ -36,21 +36,55 @@ class FtpClient(object):
             self.client.connect((server_ip, server_port))
             msg = self.client.recv(1024).decode()  # 等待服务器的发送登陆要求
             login_data = self.__login(msg)
-            if login_data:
-                print("登陆成功！")
-                cmd = input("[ %s/ ]# " % login_data)
+            while login_data:
+                input_data = input("[ %s/ ]# " % login_data).split()
+                if not input_data:
+                    continue
+                cmd = input_data[0]
+                if hasattr(self, cmd):
+                    func = getattr(self, cmd)
+                    if len(input_data) > 1:
+                        func(input_data[1])
+                    else:
+                        func()
+
         except ConnectionRefusedError:
             print("连接服务器失败...")
             exit(1)
 
-    def download(self):
+    def put(self, *args):
+        filename = args[0]
+        if os.path.isfile(filename):
+            file_size = os.stat(filename).st_size
+            if file_size:
+                cmd = "put %s %s" % (filename, file_size)
+                self.client.send(cmd.encode("utf-8"))
+                return_code = self.client.recv(1024).decode("utf-8")
+                if return_code == "200":
+                    sent_size = 0
+                    with open(filename, "rb") as f:
+                        for line in f:
+                            self.client.send(line)
+                            sent_size += len(line)
+                        print("文件[%s]发送完成" % filename)
+                else:
+                    print("Error Code: %s" % return_code)
+            else:
+                print("无法上传空文件")
+        else:
+            print("无效的文件")
+
+    def get(self):
         pass
 
-    def upload(self):
+    def ls(self):
         pass
 
-    def close(self):
-        self.client.close()
+    def delete(self):
+        pass
+
+    def cd(self):
+        pass
 
 
 client = FtpClient()
