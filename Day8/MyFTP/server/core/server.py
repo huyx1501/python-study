@@ -5,14 +5,14 @@
 import socketserver
 import os
 import yaml  # 用于解析配置文件
+import hashlib
 
 
 # 定义Handler类
 class TCPHandler(socketserver.BaseRequestHandler):
-    def auth(self, config):
+    def auth(self):
         """
         用于进行远程用户认证
-        :param config: 字典格式的配置信息，应该包含所有用户
         :return: 认证通过返回用户信息
         """
         users = config["users"]
@@ -37,16 +37,21 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
     def put(self, *args):
         if args:
-            params = args[0]
+            user_info = args[0]  # 用户信息
+            user_pwd = user_info["pwd"]  # 用户当前工作目录
+            save_path = config["server"]["data_dir"]  # 服务器数据目录
+            params = args[1]
             filename = params[1]  # 第二个参数为文件名
             size = int(params[2])  # 第三个参数为文件大小
-            if os.path.isfile(filename):
+            filepath = os.path.join(save_path, user_pwd, filename)  # 组合服务器数据目录，用户工作目录和文件名
+            if os.path.isfile(filepath):
                 self.request.send(b"409")  # 资源已存在
             else:
                 try:
-                    with open(filename, "wb") as f:
+                    with open(filepath, "wb") as f:
                         self.request.send(b"200")  # 请求正确
                         received_size = 0
+                        m = hashlib.md5()
                         while received_size < size:
                             if size - received_size > 1024:
                                 buffer_size = 1024
@@ -55,9 +60,16 @@ class TCPHandler(socketserver.BaseRequestHandler):
                             # 开始接收数据
                             _data = self.request.recv(buffer_size)
                             received_size += len(_data)
+                            m.update(_data)
                             f.write(_data)
                         else:
-                            print("文件[%s]接收完成" % filename)
+                            md5sum = m.hexdigest()  # 计算md5
+                            md5sum_client = self.request.recv(1024).decode("utf-8")  # 接收md5值
+                            if md5sum == md5sum_client:
+                                print("文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, size, md5sum))
+                            else:
+                                os.remove(filepath)  # md5校验失败，删除文件
+                                print("文件[%s]校验失败，源MD5：[%s] 本地MD5：[%s]" % (filename, md5sum_client, md5sum))
                 except PermissionError:
                     self.request.send(b"403")  # 拒绝访问
         else:
@@ -75,16 +87,16 @@ class TCPHandler(socketserver.BaseRequestHandler):
     def handle(self):
         print("连接已建立 %s" % str(self.client_address))
         try:
-            auth_data = self.auth(conf)  # 用户登陆并获取信息
+            auth_data = self.auth()  # 用户登陆并获取信息
             while auth_data:
                 message = self.request.recv(1024).decode("utf-8").split()  # 获取客户端命令和参数
                 cmd = message[0]
                 if hasattr(self, cmd):  # 检查命令是否可用
                     func = getattr(self, cmd)
                     if len(message) > 1:
-                        func(message)  # 有参数命令
+                        func(auth_data, message)  # 有参数命令
                     else:
-                        func()  # 无参数命令
+                        func(auth_data)  # 无参数命令
                 else:
                     self.request.send(b"405")  # 当命令不存在时返回错误代码405
         except (ConnectionResetError, ConnectionAbortedError, IndexError) as e:
@@ -104,16 +116,16 @@ def config_parser():
             return yaml.load(f, yaml.CLoader if yaml.CLoader else yaml.Loader)  # 读取并返回文件内容
 
 
-def initial(config):
+def initial():
     """
     初始化用户目录
-    :param config: 字典格式的配置信息
     :return: None
     """
     data_dir = config["server"]["data_dir"]
     if not (data_dir and os.path.isabs(data_dir)):  # 目录未配置或者未配置为绝对路径
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         data_dir = os.path.join(root, data_dir if data_dir else "data")  # 默认数据目录为服务器根目录下的data
+        config["server"]["data_dir"] = data_dir  # 将完整路径写入配置
     users = config["users"]
     for user in users:
         home_dir = users[user]["home"]  # 获取所有用户的家目录
@@ -122,10 +134,9 @@ def initial(config):
             os.makedirs(home_dir, mode=0o755)
 
 
-def main(config):
+def main():
     """
     主程序
-    :param config: 字典格式的配置信息
     :return: None
     """
     try:
@@ -140,6 +151,6 @@ def main(config):
 
 
 if __name__ == "__main__":
-    conf = config_parser()  # 获取配置文件内容
-    initial(conf)
-    main(conf)
+    config = config_parser()  # 获取配置文件内容
+    initial()
+    main()

@@ -4,6 +4,8 @@
 
 import socket
 import os
+import hashlib
+
 
 class FtpClient(object):
     def __init__(self):
@@ -23,8 +25,10 @@ class FtpClient(object):
                         pwd = login_result.split()[1]
                         return pwd
                     else:
-                        print("用户密码输入有误，请重新输入 : %s" % login_result)
+                        print("登录失败 : %s" % login_result)
                         login_time += 1
+                else:
+                    print("请输入用户名密码")
             except (ConnectionAbortedError, ConnectionResetError):
                 print("登陆失败")
                 break
@@ -53,19 +57,24 @@ class FtpClient(object):
             exit(1)
 
     def put(self, *args):
-        filename = args[0]
-        if os.path.isfile(filename):
-            file_size = os.stat(filename).st_size
+        file = args[0]
+        filename = os.path.basename(file)
+        if os.path.isfile(file):
+            file_size = os.stat(file).st_size
             if file_size:
                 cmd = "put %s %s" % (filename, file_size)
                 self.client.send(cmd.encode("utf-8"))
                 return_code = self.client.recv(1024).decode("utf-8")
                 if return_code == "200":
                     sent_size = 0
-                    with open(filename, "rb") as f:
+                    m = hashlib.md5()
+                    with open(file, "rb") as f:
                         for line in f:
                             self.client.send(line)
                             sent_size += len(line)
+                            m.update(line)
+                        md5sum = m.hexdigest()  # 生成文件md5值
+                        self.client.send(md5sum.encode("utf-8"))
                         print("文件[%s]发送完成" % filename)
                 else:
                     print("Error Code: %s" % return_code)

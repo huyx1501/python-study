@@ -8,14 +8,17 @@
     Bob:
       key: "123456"
       home: "bob"
+      pwd: "bob"
       quota: "-1"
 
     Tom:
       key: "123456"
       home: "tom"
+      pwd: "tom"
       quota: "500K"
 
     Jerry:
       key: "123456"
       home: "jerry"
+      pwd: "jerry"
       quota: "100M"
