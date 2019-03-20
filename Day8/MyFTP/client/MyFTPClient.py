@@ -116,7 +116,7 @@ class FtpClient(object):
                 result += _result.decode("utf-8")
                 received_size += len(_result)
             else:
-                print(result)
+                print(result.strip())
         else:
             print("Nothing")
 

@@ -159,6 +159,10 @@ def main():
     主程序
     :return: None
     """
+    global config
+    config = config_parser()  # 获取配置文件内容
+    config["server"]["platform"] = sys.platform
+    initial()
     try:
         ip = str(config["server"]["bind"])  # 取出配置中的监听IP
         port = int(config["server"]["port"])  # 取出配置中的监听端口
@@ -171,7 +175,4 @@ def main():
 
 
 if __name__ == "__main__":
-    config = config_parser()  # 获取配置文件内容
-    config["server"]["platform"] = sys.platform
-    initial()
     main()
