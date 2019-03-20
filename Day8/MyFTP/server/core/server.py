@@ -6,6 +6,7 @@ import socketserver
 import os
 import yaml  # 用于解析配置文件
 import hashlib
+import sys
 
 
 # 定义Handler类
@@ -35,51 +36,70 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 self.request.send("用户名不存在".encode("utf-8"))
                 login_times += 1
 
-    def put(self, *args):
-        if args:
-            user_info = args[0]  # 用户信息
-            user_pwd = user_info["pwd"]  # 用户当前工作目录
-            save_path = config["server"]["data_dir"]  # 服务器数据目录
-            params = args[1]
-            filename = params[1]  # 第二个参数为文件名
-            size = int(params[2])  # 第三个参数为文件大小
-            filepath = os.path.join(save_path, user_pwd, filename)  # 组合服务器数据目录，用户工作目录和文件名
-            if os.path.isfile(filepath):
-                self.request.send(b"409")  # 资源已存在
-            else:
-                try:
-                    with open(filepath, "wb") as f:
-                        self.request.send(b"200")  # 请求正确
-                        received_size = 0
-                        m = hashlib.md5()
-                        while received_size < size:
-                            if size - received_size > 1024:
-                                buffer_size = 1024
-                            else:
-                                buffer_size = size - received_size
-                            # 开始接收数据
-                            _data = self.request.recv(buffer_size)
-                            received_size += len(_data)
-                            m.update(_data)
-                            f.write(_data)
-                        else:
-                            md5sum = m.hexdigest()  # 计算md5
-                            md5sum_client = self.request.recv(1024).decode("utf-8")  # 接收md5值
-                            if md5sum == md5sum_client:
-                                print("文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, size, md5sum))
-                            else:
-                                os.remove(filepath)  # md5校验失败，删除文件
-                                print("文件[%s]校验失败，源MD5：[%s] 本地MD5：[%s]" % (filename, md5sum_client, md5sum))
-                except PermissionError:
-                    self.request.send(b"403")  # 拒绝访问
+    def put(self, user_info, params):
+        """
+        用户上传文件
+        :param user_info: 已通过认证的用户属性
+        :param params: 命令参数
+        :return: None
+        """
+        user_pwd = user_info["pwd"]  # 用户当前工作目录
+        data_dir = config["server"]["data_dir"]  # 服务器数据目录
+        filename = params[1]  # 第二个参数为文件名（第一个参数为命令本身）
+        size = int(params[2])  # 第三个参数为文件大小
+        filepath = os.path.join(data_dir, user_pwd, filename)  # 组合服务器数据目录，用户工作目录和文件名
+        if os.path.isfile(filepath):
+            self.request.send("ERROR: 409 - 资源已存在".encode("utf-8"))
         else:
-            self.request.send(b"400")  # 命令参数有误
+            try:
+                with open(filepath, "wb") as f:
+                    self.request.send(b"200")  # 请求正确
+                    received_size = 0
+                    m = hashlib.md5()
+                    while received_size < size:
+                        if size - received_size > 1024:
+                            buffer_size = 1024
+                        else:
+                            buffer_size = size - received_size
+                        # 开始接收数据
+                        _data = self.request.recv(buffer_size)
+                        received_size += len(_data)
+                        m.update(_data)
+                        f.write(_data)
+                    else:
+                        md5sum = m.hexdigest()  # 计算md5
+                        md5sum_client = self.request.recv(1024).decode("utf-8")  # 接收md5值
+                        if md5sum == md5sum_client:
+                            print("文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, size, md5sum))
+                        else:
+                            os.remove(filepath)  # md5校验失败，删除文件
+                            print("文件[%s]校验失败，源MD5：[%s] 本地MD5：[%s]" % (filename, md5sum_client, md5sum))
+            except PermissionError:
+                self.request.send("ERROR: 403 - 拒绝访问".encode("utf-8"))
 
     def get(self, *args):
         self.request.send(b"200")
 
-    def ls(self, path=None):
-        self.request.send(b"200")
+    def ls(self, user_info, ls_path=""):
+        """
+        获取目录或文件属性
+        :param user_info: 已通过认证的用户属性
+        :param ls_path: ls 命令参数
+        :return: None
+        """
+        path = os.path.join(config["server"]["data_dir"], user_info["pwd"], ls_path)
+        if config["server"]["platform"] == "win32":
+            result = os.popen("dir " + path).read()
+            result = result.replace(config["server"]["data_dir"],"")  # 去除结果中服务器数据目录
+        else:
+            result = os.popen("ls " + path).read()
+        if result:
+            result_size = len(result.encode("utf-8"))
+            self.request.send(str(result_size).encode("utf-8"))
+            self.request.recv(1024)
+            self.request.send(result.encode("utf-8"))
+        else:
+            self.request.send("0".encode("utf-8"))
 
     def cd(self, *args):
         self.request.send(b"200")
@@ -98,7 +118,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
                     else:
                         func(auth_data)  # 无参数命令
                 else:
-                    self.request.send(b"405")  # 当命令不存在时返回错误代码405
+                    self.request.send("ERROR: 405 - 无效的指令".encode("utf-8"))
         except (ConnectionResetError, ConnectionAbortedError, IndexError) as e:
             print("客户端连接中断...")
             return
@@ -152,5 +172,6 @@ def main():
 
 if __name__ == "__main__":
     config = config_parser()  # 获取配置文件内容
+    config["server"]["platform"] = sys.platform
     initial()
     main()
