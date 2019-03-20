@@ -77,8 +77,35 @@ class TCPHandler(socketserver.BaseRequestHandler):
             except PermissionError:
                 self.request.send("ERROR: 403 - 拒绝访问".encode("utf-8"))
 
-    def get(self, *args):
-        self.request.send(b"200")
+    def get(self, user_info, params):
+        """
+        用户下载文件
+        :param user_info: 已通过认证的用户属性
+        :param params: 命令参数
+        :return: None
+        """
+        user_pwd = user_info["pwd"]  # 用户当前工作目录
+        data_dir = config["server"]["data_dir"]  # 服务器数据目录
+        file = params[1]  # 第二个参数为文件名和相对路径（第一个参数为命令本身）
+        filename = os.path.basename(file)
+        filepath = os.path.join(data_dir, user_pwd, file)  # 组合服务器数据目录，用户工作目录和文件名
+        if os.path.isfile(filepath):
+            file_size = os.stat(filepath).st_size
+            if file_size:
+                self.request.send(str(file_size).encode("utf-8"))
+                self.request.recv(1024)  # 等待客户端响应
+                m = hashlib.md5()
+                with open(filepath, "rb") as f:
+                    for line in f:
+                        self.request.send(line)
+                        m.update(line)
+                    md5sum = m.hexdigest()
+                self.request.send(md5sum.encode("utf-8"))
+                print("文件[%s]发送完成" % filename)
+            else:
+                self.request.send("ERROR: 402 - 文件为空".encode("utf-8"))
+        else:
+            self.request.send("ERROR: 404 - 资源不存在".encode("utf-8"))
 
     def ls(self, user_info, ls_path=""):
         """
@@ -90,13 +117,13 @@ class TCPHandler(socketserver.BaseRequestHandler):
         path = os.path.join(config["server"]["data_dir"], user_info["pwd"], ls_path)
         if config["server"]["platform"] == "win32":
             result = os.popen("dir " + path).read()
-            result = result.replace(config["server"]["data_dir"],"")  # 去除结果中服务器数据目录
+            result = result.replace(config["server"]["data_dir"], "")  # 去除结果中服务器数据目录
         else:
             result = os.popen("ls " + path).read()
         if result:
             result_size = len(result.encode("utf-8"))
             self.request.send(str(result_size).encode("utf-8"))
-            self.request.recv(1024)
+            self.request.recv(1024)  # 等待客户端回应
             self.request.send(result.encode("utf-8"))
         else:
             self.request.send("0".encode("utf-8"))

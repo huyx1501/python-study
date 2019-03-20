@@ -4,6 +4,7 @@
 
 import socket
 import os
+import sys
 import hashlib
 
 
@@ -97,8 +98,39 @@ class FtpClient(object):
         else:
             print("无效的文件")
 
-    def get(self):
-        pass
+    def get(self, file):
+        if not file:
+            print("请指定下载文件")
+            return
+        filename = os.path.basename(file)  # 提取文件名
+        self.client.send(("get" + " " + file).encode("utf-8"))  # 发送指令
+        data = self.client.recv(1024).decode("utf-8")  # 获取文件长度
+        if data.isdigit():
+            file_size = int(data)
+            self.client.send("ACK".encode("utf-8"))  # 回应收到文件长度
+            received_size = 0
+            m = hashlib.md5()
+            with open(filename, "wb") as f:
+                while received_size < file_size:
+                    if file_size - received_size > 1024:
+                        buffer = 1024
+                    else:
+                        buffer = file_size - received_size
+                    #  接收并保存数据
+                    _data = self.client.recv(buffer)
+                    received_size += len(_data)
+                    m.update(_data)
+                    f.write(_data)
+                else:
+                    md5sum = m.hexdigest()  # 计算md5
+                    md5sum_server = self.client.recv(1024).decode("utf-8")  # 接收md5值
+                    if md5sum == md5sum_server:
+                        print("文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, file_size, md5sum))
+                    else:
+                        os.remove(file)  # md5校验失败，删除文件
+                        print("文件[%s]校验失败，源MD5：[%s] 本地MD5：[%s]" % (filename, md5sum_server, md5sum))
+        else:
+            print(data.strip())
 
     def ls(self, path=""):
         self.client.send(("ls" + " " + path).encode("utf-8"))
@@ -125,6 +157,16 @@ class FtpClient(object):
 
     def cd(self):
         pass
+
+    @staticmethod
+    def lls(path=""):
+        platform = sys.platform
+        if platform == "win32":
+            result = os.popen("dir " + path).read()
+            print(result.strip())
+        else:
+            result = os.popen("ls " + path).read()
+            print(result.strip())
 
 
 client = FtpClient()
