@@ -28,7 +28,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
                     if password == auth_data[1]:
                         pwd = user_info["home"]
                         self.request.send(("Success" + " " + pwd).encode("utf-8"))
-                        return user_info
+                        return user_info["name"]
                     else:
                         self.request.send("密码错误".encode("utf-8"))
                         login_times += 1
@@ -45,8 +45,8 @@ class TCPHandler(socketserver.BaseRequestHandler):
         """
         user_pwd = user_info["pwd"]  # 用户当前工作目录
         data_dir = config["server"]["data_dir"]  # 服务器数据目录
-        filename = params[1]  # 第二个参数为文件名（第一个参数为命令本身）
-        size = int(params[2])  # 第三个参数为文件大小
+        filename = params[0]  # 第一个参数为文件名
+        size = int(params[1])  # 第二个参数为文件大小
         filepath = os.path.join(data_dir, user_pwd, filename)  # 组合服务器数据目录，用户工作目录和文件名
         if os.path.isfile(filepath):
             self.request.send("ERROR: 409 - 资源已存在".encode("utf-8"))
@@ -86,7 +86,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
         """
         user_pwd = user_info["pwd"]  # 用户当前工作目录
         data_dir = config["server"]["data_dir"]  # 服务器数据目录
-        file = params[1]  # 第二个参数为文件名和相对路径（第一个参数为命令本身）
+        file = params[0]  # 第一个参数为文件名和相对路径
         filename = os.path.basename(file)
         filepath = os.path.join(data_dir, user_pwd, file)  # 组合服务器数据目录，用户工作目录和文件名
         if os.path.isfile(filepath):
@@ -107,13 +107,17 @@ class TCPHandler(socketserver.BaseRequestHandler):
         else:
             self.request.send("ERROR: 404 - 资源不存在".encode("utf-8"))
 
-    def ls(self, user_info, ls_path=""):
+    def ls(self, user_info, *args):
         """
         获取目录或文件属性
         :param user_info: 已通过认证的用户属性
-        :param ls_path: ls 命令参数
+        :param params: 命令参数
         :return: None
         """
+        if args:
+            ls_path = args[0][0]
+        else:
+            ls_path = ""
         path = os.path.join(config["server"]["data_dir"], user_info["pwd"], ls_path)
         if config["server"]["platform"] == "win32":
             result = os.popen("dir " + path).read()
@@ -128,22 +132,39 @@ class TCPHandler(socketserver.BaseRequestHandler):
         else:
             self.request.send("0".encode("utf-8"))
 
-    def cd(self, *args):
-        self.request.send(b"200")
+    def cd(self, user_info, params):
+        data_dir = config["server"]["data_dir"]
+        user_pwd = user_info["pwd"]  # 获取当前工作目录
+        cd_path = params[0]
+        path = os.path.join(data_dir, user_pwd, cd_path)
+        if cd_path == "..":
+            user_pwd = os.path.dirname(user_pwd)  # 获取上一级目录
+            if not user_pwd:
+                self.request.send("ERROR: 403 - 拒绝访问".encode("utf-8"))
+            else:
+                self.request.send(user_pwd.encode("utf-8"))
+        elif os.path.isdir(path) and cd_path != ".":
+            user_pwd = os.path.join(user_pwd, cd_path)
+            config["users"][user_info["name"]]["pwd"] = user_pwd
+            self.request.send(user_pwd.encode("utf-8"))
+        else:
+            self.request.send("ERROR: 404 - 无效的目录".encode("utf-8"))
 
     def handle(self):
         print("连接已建立 %s" % str(self.client_address))
         try:
-            auth_data = self.auth()  # 用户登陆并获取信息
-            while auth_data:
+            auth_user = self.auth()  # 用户登陆并获取信息
+            while auth_user:
+                user_info = config["users"][auth_user]
                 message = self.request.recv(1024).decode("utf-8").split()  # 获取客户端命令和参数
                 cmd = message[0]
                 if hasattr(self, cmd):  # 检查命令是否可用
                     func = getattr(self, cmd)
                     if len(message) > 1:
-                        func(auth_data, message)  # 有参数命令
+                        message.pop(0)
+                        func(user_info, message)  # 有参数命令
                     else:
-                        func(auth_data)  # 无参数命令
+                        func(user_info)  # 无参数命令
                 else:
                     self.request.send("ERROR: 405 - 无效的指令".encode("utf-8"))
         except (ConnectionResetError, ConnectionAbortedError, IndexError) as e:

@@ -6,18 +6,21 @@
 
   users:
     Bob:
+      name: "Bob"
       key: "123456"
       home: "bob"
       pwd: "bob"
       quota: "-1"
 
     Tom:
+      name: "Tom"
       key: "123456"
       home: "tom"
       pwd: "tom"
       quota: "500K"
 
     Jerry:
+      name: "Jerry"
       key: "123456"
       home: "jerry"
       pwd: "jerry"

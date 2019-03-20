@@ -29,7 +29,7 @@ class FtpClient(object):
                     login_result = self.client.recv(1024).decode("utf-8")  # 获取登录结果
                     if "Success" in login_result:
                         pwd = login_result.split()[1]
-                        return pwd
+                        return {"pwd": pwd}
                     else:
                         print("登录失败 : %s" % login_result)
                         login_time += 1
@@ -51,9 +51,10 @@ class FtpClient(object):
         try:
             self.client.connect((server_ip, server_port))  # 建立连接
             msg = self.client.recv(1024).decode()  # 等待服务器的发送登陆要求
+            global  login_data
             login_data = self.__login(msg)  # 登录
             while login_data:
-                input_data = input("[ %s/ ]# " % login_data).split()  # 登录成功后显示命令行界面
+                input_data = input("[ %s ]# " % login_data["pwd"]).split()  # 登录成功后显示命令行界面
                 if not input_data:
                     continue
                 cmd = input_data[0]
@@ -155,8 +156,18 @@ class FtpClient(object):
     def delete(self):
         pass
 
-    def cd(self):
-        pass
+    def cd(self, cd_path=""):
+        if not cd_path:
+            print("请指定切换目录")
+            return
+        else:
+            cd_path = cd_path.strip("/").strip("\\")
+        self.client.send(("cd" + " " + cd_path).encode("utf-8"))
+        result = self.client.recv(1024).decode("utf-8")
+        if "ERROR" in result:
+            print(result.strip())
+        else:
+            login_data["pwd"] = result.strip()
 
     @staticmethod
     def lls(path=""):
