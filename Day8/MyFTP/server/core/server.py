@@ -7,7 +7,7 @@ import os
 import yaml  # 用于解析配置文件
 import hashlib
 import sys
-
+import shutil
 
 # 定义Handler类
 class TCPHandler(socketserver.BaseRequestHandler):
@@ -134,6 +134,12 @@ class TCPHandler(socketserver.BaseRequestHandler):
             self.request.send("0".encode("utf-8"))
 
     def cd(self, user_info, params):
+        """
+        用户切换工作目录
+        :param user_info: 已通过认证的用户属性
+        :param params: 命令参数
+        :return: None
+        """
         data_dir = config["server"]["data_dir"]
         user_pwd = config["users"][user_info["name"]]["pwd"]  # 获取当前工作目录
         cd_path = params[0]
@@ -151,6 +157,46 @@ class TCPHandler(socketserver.BaseRequestHandler):
             self.request.send(user_pwd.encode("utf-8"))
         else:
             self.request.send("ERROR: 404 - 无效的目录".encode("utf-8"))
+
+    def mkdir(self, user_info, params):
+        """
+        在当前工作目录下创建目录
+        :param user_info: 已通过认证的用户属性
+        :param params: 命令参数
+        :return: None
+        """
+        data_dir = config["server"]["data_dir"]
+        user_pwd = config["users"][user_info["name"]]["pwd"]  # 获取当前工作目录
+        mk_path = params[0]
+        path = os.path.join(data_dir, user_pwd, mk_path)
+        if os.path.isdir(path):
+            self.request.send("ERROR: 409 - 目录已存在".encode("utf-8"))
+        else:
+            os.makedirs(path)
+            self.request.send("Success".encode())
+
+    def rm(self, user_info, params):
+        """
+        删除目录或文件
+        :param user_info: 已通过认证的用户属性
+        :param params: 命令参数
+        :return: None
+        """
+        data_dir = config["server"]["data_dir"]
+        user_pwd = config["users"][user_info["name"]]["pwd"]  # 获取当前工作目录
+        rm_path = params[0]
+        path = os.path.join(data_dir, user_pwd, rm_path)
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+                self.request.send("Success".encode())
+            elif os.path.isdir(path):
+                shutil.rmtree(path)
+                self.request.send("Success".encode())
+            else:
+                self.request.send("ERROR: 404 - 目标不存在".encode("utf-8"))
+        except PermissionError:
+            self.request.send("ERROR: 403 - 拒绝访问".encode("utf-8"))
 
     def handle(self):
         print("连接已建立 %s" % str(self.client_address))

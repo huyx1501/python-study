@@ -9,6 +9,9 @@ import hashlib
 
 
 class FtpClient(object):
+    """
+    FTP客户端
+    """
     def __init__(self):
         self.client = socket.socket()
         self.auth_data = {}
@@ -100,6 +103,11 @@ class FtpClient(object):
             print("无效的文件")
 
     def get(self, file):
+        """
+        下在服务器上的文件到本地
+        :param file: 要下载的文件路径和文件名，如果不指定路径则默认当前目录
+        :return:
+        """
         if not file:
             print("请指定下载文件")
             return
@@ -134,6 +142,11 @@ class FtpClient(object):
             print(data.strip())
 
     def ls(self, path=""):
+        """
+        列出服务器上当前所在工作目录的信息
+        :param path: 指定路径
+        :return: None
+        """
         self.client.send(("ls" + " " + path).encode("utf-8"))
         result_size = int(self.client.recv(1024).decode("utf-8"))
         if result_size:
@@ -153,8 +166,20 @@ class FtpClient(object):
         else:
             print("Nothing")
 
-    def delete(self):
-        pass
+    def rm(self, rm_path=""):
+        """
+        删除服务器上的目录或文件
+        :param rm_path: 要删除的目标
+        :return: None
+        """
+        if not rm_path:
+            print("请指定要删除的目标")
+            return
+        else:
+            self.client.send(("rm" + " " + rm_path).encode("utf-8"))
+            result = self.client.recv(1024).decode("utf-8")
+            if "ERROR" in result:
+                print(result.strip())
 
     def cd(self, cd_path=""):
         """
@@ -176,8 +201,28 @@ class FtpClient(object):
         else:
             login_data["pwd"] = result.strip()
 
+    def mkdir(self, mk_path=""):
+        """
+        创建一个空目录
+        :param mk_path: 要创建的目录名
+        :return:None
+        """
+        if not mk_path:
+            print("请指定目录名")
+            return
+        else:
+            self.client.send(("mkdir" + " " + mk_path).encode("utf-8"))
+            result = self.client.recv(1024).decode("utf-8")
+            if "ERROR" in result:
+                print(result.strip())
+
     @staticmethod
     def lls(path=""):
+        """
+        列出本地目录信息
+        :param path: 本地目录名
+        :return: None
+        """
         platform = sys.platform
         if platform == "win32":
             result = os.popen("dir " + path).read()
