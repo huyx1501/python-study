@@ -51,7 +51,7 @@ class FtpClient(object):
         try:
             self.client.connect((server_ip, server_port))  # 建立连接
             msg = self.client.recv(1024).decode()  # 等待服务器的发送登陆要求
-            global  login_data
+            global login_data
             login_data = self.__login(msg)  # 登录
             while login_data:
                 input_data = input("[ %s ]# " % login_data["pwd"]).split()  # 登录成功后显示命令行界面
@@ -157,12 +157,19 @@ class FtpClient(object):
         pass
 
     def cd(self, cd_path=""):
+        """
+        切换目录
+        :param cd_path: 目标目录
+        :return: None
+        """
         if not cd_path:
             print("请指定切换目录")
             return
         else:
-            cd_path = cd_path.strip("/").strip("\\")
-        self.client.send(("cd" + " " + cd_path).encode("utf-8"))
+            cd_path = cd_path.strip("/").strip("\\")  # 去除最后的斜杠
+            if cd_path == ".":
+                return
+        self.client.send(("cd" + " " + cd_path).encode("utf-8"))  # 发送命令
         result = self.client.recv(1024).decode("utf-8")
         if "ERROR" in result:
             print(result.strip())

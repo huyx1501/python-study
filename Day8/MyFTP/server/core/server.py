@@ -27,6 +27,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
                     password = user_info["key"]  # 取出用户密码
                     if password == auth_data[1]:
                         pwd = user_info["home"]
+                        config["users"][user_info["name"]]["pwd"] = pwd
                         self.request.send(("Success" + " " + pwd).encode("utf-8"))
                         return user_info["name"]
                     else:
@@ -134,7 +135,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
     def cd(self, user_info, params):
         data_dir = config["server"]["data_dir"]
-        user_pwd = user_info["pwd"]  # 获取当前工作目录
+        user_pwd = config["users"][user_info["name"]]["pwd"]  # 获取当前工作目录
         cd_path = params[0]
         path = os.path.join(data_dir, user_pwd, cd_path)
         if cd_path == "..":
@@ -143,7 +144,8 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 self.request.send("ERROR: 403 - 拒绝访问".encode("utf-8"))
             else:
                 self.request.send(user_pwd.encode("utf-8"))
-        elif os.path.isdir(path) and cd_path != ".":
+                config["users"][user_info["name"]]["pwd"] = user_pwd
+        elif os.path.isdir(path):
             user_pwd = os.path.join(user_pwd, cd_path)
             config["users"][user_info["name"]]["pwd"] = user_pwd
             self.request.send(user_pwd.encode("utf-8"))
