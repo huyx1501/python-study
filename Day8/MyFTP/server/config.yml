@@ -1,27 +1,26 @@
----
-  server:
-    bind: "0.0.0.0"
-    port: 8888
-    data_dir:
-
-  users:
-    Bob:
-      name: "Bob"
-      key: "123456"
-      home: "bob"
-      pwd: "bob"
-      quota: "-1"
-
-    Tom:
-      name: "Tom"
-      key: "123456"
-      home: "tom"
-      pwd: "tom"
-      quota: "500K"
-
-    Jerry:
-      name: "Jerry"
-      key: "123456"
-      home: "jerry"
-      pwd: "jerry"
-      quota: "100M"
+server:
+  bind: 0.0.0.0
+  data_dir: data
+  port: 8888
+users:
+  Bob:
+    home: bob
+    key: '123456'
+    name: Bob
+    pwd: bob
+    quota: 100000000
+    used: 0
+  Jerry:
+    home: jerry
+    key: '123456'
+    name: Jerry
+    pwd: jerry
+    quota: 100000000
+    used: 0
+  Tom:
+    home: tom
+    key: '123456'
+    name: Tom
+    pwd: tom
+    quota: 500000
+    used: 0

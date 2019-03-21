@@ -49,9 +49,16 @@ class TCPHandler(socketserver.BaseRequestHandler):
         :return: None
         """
         user_pwd = user_info["pwd"]  # 用户当前工作目录
+        username = user_info["name"]
+        used_size = int(user_info["used"])  # 已用空间
         data_dir = config["server"]["data_dir"]  # 服务器数据目录
         filename = params[0]  # 第一个参数为文件名
         size = int(params[1])  # 第二个参数为文件大小
+        user_quota = int(user_info["quota"])  # 用户磁盘配合
+        print(user_quota)
+        if used_size + size > user_quota:
+            self.request.send("ERROR: 402 - 可用空间不足".encode("utf-8"))
+            return
         filepath = os.path.join(data_dir, user_pwd, filename)  # 组合服务器数据目录，用户工作目录和文件名
         if os.path.isfile(filepath):
             self.request.send("ERROR: 409 - 资源已存在".encode("utf-8"))
@@ -75,6 +82,8 @@ class TCPHandler(socketserver.BaseRequestHandler):
                         md5sum = m.hexdigest()  # 计算md5
                         md5sum_client = self.request.recv(1024).decode("utf-8")  # 接收md5值
                         if md5sum == md5sum_client:
+                            config["users"][username]["used"] += size  # 计算已使用空间
+                            self.save()
                             print("文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, size, md5sum))
                         else:
                             os.remove(filepath)  # md5校验失败，删除文件
@@ -116,7 +125,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
         """
         获取目录或文件属性
         :param user_info: 已通过认证的用户属性
-        :param params: 命令参数
+        :param args: 命令参数
         :return: None
         """
         if args:
@@ -124,11 +133,11 @@ class TCPHandler(socketserver.BaseRequestHandler):
         else:
             ls_path = ""
         path = os.path.join(config["server"]["data_dir"], user_info["pwd"], ls_path)
-        if config["server"]["platform"] == "win32":
+        if platform == "win32":
             result = os.popen("dir " + path).read()
             result = result.replace(config["server"]["data_dir"], "")  # 去除结果中服务器数据目录
         else:
-            result = os.popen("ls " + path).read()
+            result = os.popen("ls -lh" + path).read()
         if result:
             result_size = len(result.encode("utf-8"))
             self.request.send(str(result_size).encode("utf-8"))
@@ -145,7 +154,8 @@ class TCPHandler(socketserver.BaseRequestHandler):
         :return: None
         """
         data_dir = config["server"]["data_dir"]
-        user_pwd = config["users"][user_info["name"]]["pwd"]  # 获取当前工作目录
+        username = user_info["name"]
+        user_pwd = config["users"][username]["pwd"]  # 获取当前工作目录
         cd_path = params[0]
         path = os.path.join(data_dir, user_pwd, cd_path)
         if cd_path == "..":
@@ -154,10 +164,10 @@ class TCPHandler(socketserver.BaseRequestHandler):
                 self.request.send("ERROR: 403 - 拒绝访问".encode("utf-8"))
             else:
                 self.request.send(user_pwd.encode("utf-8"))
-                config["users"][user_info["name"]]["pwd"] = user_pwd
+                config["users"][username]["pwd"] = user_pwd
         elif os.path.isdir(path):
             user_pwd = os.path.join(user_pwd, cd_path)
-            config["users"][user_info["name"]]["pwd"] = user_pwd
+            config["users"][username]["pwd"] = user_pwd
             self.request.send(user_pwd.encode("utf-8"))
         else:
             self.request.send("ERROR: 404 - 无效的目录".encode("utf-8"))
@@ -170,7 +180,8 @@ class TCPHandler(socketserver.BaseRequestHandler):
         :return: None
         """
         data_dir = config["server"]["data_dir"]
-        user_pwd = config["users"][user_info["name"]]["pwd"]  # 获取当前工作目录
+        username = user_info["name"]
+        user_pwd = config["users"][username]["pwd"]  # 获取当前工作目录
         mk_path = params[0]
         path = os.path.join(data_dir, user_pwd, mk_path)
         if os.path.isdir(path):
@@ -187,15 +198,26 @@ class TCPHandler(socketserver.BaseRequestHandler):
         :return: None
         """
         data_dir = config["server"]["data_dir"]
-        user_pwd = config["users"][user_info["name"]]["pwd"]  # 获取当前工作目录
+        username = user_info["name"]
+        user_pwd = config["users"][username]["pwd"]  # 获取当前工作目录
         rm_path = params[0]
         path = os.path.join(data_dir, user_pwd, rm_path)
         try:
             if os.path.isfile(path):
+                size = os.stat(path).st_size
                 os.remove(path)
+                config["users"][username]["used"] -= size  # 释放空间，重新计算
+                self.save()
                 self.request.send("Success".encode())
             elif os.path.isdir(path):
+                size = self.getsize(path)
                 shutil.rmtree(path)
+                if config["users"][username]["used"] - size < 0:
+                    config["users"][username]["used"] = 0
+                    self.save()
+                else:
+                    config["users"][username]["used"] -= size
+                    self.save()
                 self.request.send("Success".encode())
             else:
                 self.request.send("ERROR: 404 - 目标不存在".encode("utf-8"))
@@ -222,6 +244,33 @@ class TCPHandler(socketserver.BaseRequestHandler):
         except (ConnectionResetError, ConnectionAbortedError, IndexError) as e:
             print("客户端连接中断...")
             return
+
+    @staticmethod
+    def getsize(path):
+        """
+        计算目录及其子目录的文件大小总和
+        :param path: 目录名
+        :return: 返回文件总大小
+        """
+        size = 0
+        for root, dirs, files in os.walk(path):
+            size += sum([os.path.getsize(os.path.join(root, name)) for name in files])
+        return int(size)
+
+    @staticmethod
+    def save():
+        """
+        保存配置信息
+        :return: None
+        """
+        server_info = config_parser()["server"]
+        config["server"] = server_info # 服务器配置信息不要修改
+        config["server"]["data_dir"] = "data" if server_info["data_dir"] is None else server_info["data_dir"]
+        pwd = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 获取程序根目录
+        config_path = os.path.join(pwd, "config.yml")  # 组合配置文件路径
+        if os.path.isfile(config_path):  # 确定配置文件存在并且是文件
+            with open(config_path, "w") as f:
+                yaml.dump(config, f)
 
 
 def config_parser():
@@ -259,9 +308,9 @@ def main():
     主程序
     :return: None
     """
-    global config
+    global config, platform
     config = config_parser()  # 获取配置文件内容
-    config["server"]["platform"] = sys.platform
+    platform = sys.platform
     initial()
     try:
         ip = str(config["server"]["bind"])  # 取出配置中的监听IP
