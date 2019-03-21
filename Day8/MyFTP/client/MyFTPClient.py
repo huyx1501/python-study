@@ -6,6 +6,7 @@ import socket
 import os
 import sys
 import hashlib
+import getpass
 
 
 class FtpClient(object):
@@ -23,12 +24,16 @@ class FtpClient(object):
         :return: 登录成功返回当前工作目录
         """
         login_time = 0
+        m = hashlib.md5()
         while login_flag == "Login" and login_time < 3:  # 正常服务器发送的第一个包应该是“Login”
             try:
                 self.auth_data["username"] = input("Login <username>: ").strip()
-                self.auth_data["password"] = input("Login <password>: ")
+                self.auth_data["password"] = getpass.getpass("Login <password>: ")
+                # self.auth_data["password"] = input("Login <password>: ")  # 由于Pycharm不支持getpass模块，Pycharm调试时用input
+                m.update(self.auth_data["password"].encode("utf-8"))
                 if self.auth_data["username"] and self.auth_data["password"]:  # 确定用户名密码已输入
-                    self.client.send((self.auth_data["username"] + " " + self.auth_data["password"]).encode("utf-8"))
+                    pass_md5 = m.hexdigest()  # 获取密码的MD5值
+                    self.client.send((self.auth_data["username"] + " " + pass_md5).encode("utf-8"))
                     login_result = self.client.recv(1024).decode("utf-8")  # 获取登录结果
                     if "Success" in login_result:
                         pwd = login_result.split()[1]
@@ -67,6 +72,10 @@ class FtpClient(object):
                         func(input_data[1])
                     else:
                         func()
+                elif cmd == "bye":
+                    self.client.close()
+                    exit()
+
         except ConnectionRefusedError:
             print("连接服务器失败...")
             exit(1)
