@@ -107,13 +107,19 @@ class TCPHandler(socketserver.BaseRequestHandler):
             file_size = os.stat(filepath).st_size
             if file_size:
                 self.request.send(str(file_size).encode("utf-8"))
-                self.request.recv(1024)  # 等待客户端响应
+                sent_size = int(self.request.recv(1024).decode("utf-8"))  # 等待客户端响应
                 m = hashlib.md5()
                 with open(filepath, "rb") as f:
-                    for line in f:
-                        self.request.send(line)
-                        m.update(line)
-                    md5sum = m.hexdigest()
+                    if sent_size:  # 断点续传
+                        f.seek(sent_size)
+                        for line in f:
+                            self.request.send(line)
+                        md5sum = self.md5sum(filepath)  # 重新计算完整的md5值
+                    else:
+                        for line in f:
+                            self.request.send(line)
+                            m.update(line)
+                        md5sum = m.hexdigest()
                 self.request.send(md5sum.encode("utf-8"))
                 print("文件[%s]发送完成" % filename)
             else:
@@ -271,6 +277,14 @@ class TCPHandler(socketserver.BaseRequestHandler):
         if os.path.isfile(config_path):  # 确定配置文件存在并且是文件
             with open(config_path, "w") as f:
                 yaml.dump(config, f)
+
+    @staticmethod
+    def md5sum(file):
+        m = hashlib.md5()
+        with open(file, "rb") as f:
+            for line in f:
+                m.update(line)
+            return m.hexdigest()
 
 
 def config_parser():

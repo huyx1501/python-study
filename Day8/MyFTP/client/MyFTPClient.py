@@ -28,8 +28,8 @@ class FtpClient(object):
         while login_flag == "Login" and login_time < 3:  # 正常服务器发送的第一个包应该是“Login”
             try:
                 self.auth_data["username"] = input("Login <username>: ").strip()
-                self.auth_data["password"] = getpass.getpass("Login <password>: ")
-                # self.auth_data["password"] = input("Login <password>: ")  # 由于Pycharm不支持getpass模块，Pycharm调试时用input
+                # self.auth_data["password"] = getpass.getpass("Login <password>: ")
+                self.auth_data["password"] = input("Login <password>: ")  # 由于Pycharm不支持getpass模块，Pycharm调试时用input
                 m.update(self.auth_data["password"].encode("utf-8"))
                 if self.auth_data["username"] and self.auth_data["password"]:  # 确定用户名密码已输入
                     pass_md5 = m.hexdigest()  # 获取密码的MD5值
@@ -121,32 +121,61 @@ class FtpClient(object):
             print("请指定下载文件")
             return
         filename = os.path.basename(file)  # 提取文件名
+        position_file = filename + ".pos"
+        temp_file = filename + ".ftptemp"
+        position = 0
+        if os.path.isfile(position_file):
+            with open(position_file, "r") as f:
+                line = f.readline()
+                position = int(line) if line else 0
         self.client.send(("get" + " " + file).encode("utf-8"))  # 发送指令
         data = self.client.recv(1024).decode("utf-8")  # 获取文件长度
         if data.isdigit():
             file_size = int(data)
-            self.client.send("ACK".encode("utf-8"))  # 回应收到文件长度
-            received_size = 0
-            m = hashlib.md5()
-            with open(filename, "wb") as f:
+            received_size = position
+            self.client.send(str(received_size).encode("utf-8"))  # 回应已收到的文件长度
+            if position:
+                f = open(temp_file, "r+b")
+            else:
+                f = open(temp_file, "wb")
+            fp = open(position_file, "w")
+            try:
+                m = hashlib.md5()
+                if position:
+                    f.seek(position)  # 切换到断点位置开始写
                 while received_size < file_size:
-                    if file_size - received_size > 1024:
-                        buffer = 1024
+                    if file_size - received_size > 4096:
+                        buffer = 4096
                     else:
                         buffer = file_size - received_size
                     #  接收并保存数据
                     _data = self.client.recv(buffer)
                     received_size += len(_data)
-                    m.update(_data)
                     f.write(_data)
+                    fp.seek(0)
+                    fp.write(str(received_size))  # 保存进度
+                    if not position:
+                        m.update(_data)
+                md5sum_client = self.md5sum(temp_file) if position else m.hexdigest()  # 计算md5
+                md5sum_server = self.client.recv(1024).decode("utf-8")  # 接收md5值
+                if md5sum_client == md5sum_server:
+                    print("文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, file_size, md5sum_client))
+                    f.close()
+                    fp.close()
+                    os.rename(temp_file, filename)
+                    os.remove(position_file)
                 else:
-                    md5sum = m.hexdigest()  # 计算md5
-                    md5sum_server = self.client.recv(1024).decode("utf-8")  # 接收md5值
-                    if md5sum == md5sum_server:
-                        print("文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, file_size, md5sum))
-                    else:
-                        os.remove(file)  # md5校验失败，删除文件
-                        print("文件[%s]校验失败，源MD5：[%s] 本地MD5：[%s]" % (filename, md5sum_server, md5sum))
+                    f.close()
+                    fp.close()
+                    #os.remove(temp_file)  # md5校验失败，删除文件
+                    #os.remove(position_file)
+                    print("文件[%s]校验失败，源MD5：[%s] 本地MD5：[%s]" % (filename, md5sum_server, md5sum_client))
+            except Exception:  # 保存断点信息
+                f.flush()
+                fp.flush()
+                f.close()
+                fp.close()
+
         else:
             print(data.strip())
 
@@ -239,6 +268,14 @@ class FtpClient(object):
         else:
             result = os.popen("ls " + path).read()
             print(result.strip())
+
+    @staticmethod
+    def md5sum(file):
+        m = hashlib.md5()
+        with open(file, "rb") as f:
+            for line in f:
+                m.update(line)
+            return m.hexdigest()
 
 
 client = FtpClient()
