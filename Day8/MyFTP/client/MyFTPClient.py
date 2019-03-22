@@ -93,20 +93,22 @@ class FtpClient(object):
             if file_size:
                 cmd = "put %s %s" % (filename, file_size)
                 self.client.send(cmd.encode("utf-8"))
-                return_code = self.client.recv(1024).decode("utf-8")
-                if return_code == "200":
-                    sent_size = 0
+                return_data = self.client.recv(1024).decode("utf-8")  # 接收服务器返回
+                if "200" in return_data:  # 正常返回
+                    sent_size = int(return_data.split()[1])
                     m = hashlib.md5()
                     with open(file, "rb") as f:
+                        if sent_size:  # 断点续传
+                            f.seek(sent_size)
                         for line in f:
                             self.client.send(line)
-                            sent_size += len(line)
-                            m.update(line)
-                        md5sum = m.hexdigest()  # 生成文件md5值
-                        self.client.send(md5sum.encode("utf-8"))
-                        print("文件[%s]发送完成" % filename)
+                            if not sent_size:
+                                m.update(line)
+                    md5sum_client = self.md5sum(file) if sent_size else m.hexdigest()  # 生成文件md5值
+                    self.client.send(md5sum_client.encode("utf-8"))
+                    print("文件[%s]发送完成" % filename)
                 else:
-                    print(return_code)
+                    print(return_data)
             else:
                 print("无法上传空文件")
         else:
@@ -122,61 +124,41 @@ class FtpClient(object):
             print("请指定下载文件")
             return
         filename = os.path.basename(file)  # 提取文件名
-        position_file = filename + ".pos"
         temp_file = filename + ".ftptemp"
         position = 0
-        if os.path.isfile(position_file):
-            with open(position_file, "r") as f:
-                line = f.readline()
-                position = int(line) if line else 0
+        if os.path.isfile(temp_file):
+            position = os.stat(temp_file).st_size  # 读取临时文件大小以确定已经接收的大小
         self.client.send(("get" + " " + file).encode("utf-8"))  # 发送指令
         data = self.client.recv(1024).decode("utf-8")  # 获取文件长度
         if data.isdigit():
             file_size = int(data)
-            received_size = position
+            received_size = position  # 已接收部分
             self.client.send(str(received_size).encode("utf-8"))  # 回应已收到的文件长度
-            if position:
-                f = open(temp_file, "r+b")
-            else:
-                f = open(temp_file, "wb")
-            fp = open(position_file, "w")
             try:
                 m = hashlib.md5()
-                if position:
-                    f.seek(position)  # 切换到断点位置开始写
-                while received_size < file_size:
-                    if file_size - received_size > 4096:
-                        buffer = 4096
-                    else:
-                        buffer = file_size - received_size
-                    #  接收并保存数据
-                    _data = self.client.recv(buffer)
-                    received_size += len(_data)
-                    f.write(_data)
-                    fp.seek(0)
-                    fp.write(str(received_size))  # 保存进度
-                    if not position:
-                        m.update(_data)
-                md5sum_client = self.md5sum(temp_file) if position else m.hexdigest()  # 计算md5
-                md5sum_server = self.client.recv(1024).decode("utf-8")  # 接收md5值
+                with open(temp_file, "ab") as f:  # 如果已经存在在追加，否则新建
+                    while received_size < file_size:
+                        if file_size - received_size > 1024:
+                            buffer = 1024
+                        else:
+                            buffer = file_size - received_size
+                        #  接收并保存数据
+                        _data = self.client.recv(buffer)
+                        received_size += len(_data)
+                        f.write(_data)
+                        if not position:  # 非断点续传时每次接收都计算md5值，避免重复打开文件
+                            m.update(_data)
+                    f.flush()
+                md5sum_client = self.md5sum(temp_file) if position else m.hexdigest()  # 计算md5，如果是断点续传则需要等接收完后重新计算
+                md5sum_server = self.client.recv(1024).decode("utf-8")  # 接收服务器端源文件md5值
                 if md5sum_client == md5sum_server:
-                    print("文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, file_size, md5sum_client))
-                    f.close()
-                    fp.close()
                     os.rename(temp_file, filename)
-                    os.remove(position_file)
+                    print("文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, file_size, md5sum_client))
                 else:
-                    f.close()
-                    fp.close()
-                    #os.remove(temp_file)  # md5校验失败，删除文件
-                    #os.remove(position_file)
+                    os.remove(temp_file)  # md5校验失败，删除文件
                     print("文件[%s]校验失败，源MD5：[%s] 本地MD5：[%s]" % (filename, md5sum_server, md5sum_client))
-            except Exception:  # 保存断点信息
-                f.flush()
-                fp.flush()
-                f.close()
-                fp.close()
-
+            except (ConnectionResetError, ConnectionAbortedError):
+                print("连接中断...")
         else:
             print(data.strip())
 
@@ -272,6 +254,11 @@ class FtpClient(object):
 
     @staticmethod
     def md5sum(file):
+        """
+        计算整个文件的MD5值
+        :param file: 要计算的文件
+        :return: 返回文件MD5值
+        """
         m = hashlib.md5()
         with open(file, "rb") as f:
             for line in f:

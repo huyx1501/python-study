@@ -53,44 +53,52 @@ class TCPHandler(socketserver.BaseRequestHandler):
         username = user_info["name"]
         used_size = int(user_info["used"])  # 已用空间
         data_dir = config["server"]["data_dir"]  # 服务器数据目录
-        filename = params[0]  # 第一个参数为文件名
-        size = int(params[1])  # 第二个参数为文件大小
         user_quota = int(user_info["quota"])  # 用户磁盘配合
-        print(user_quota)
-        if used_size + size > user_quota:
+        filename = params[0]  # 第一个参数为文件名
+        file_size = int(params[1])  # 第二个参数为文件大小
+        temp_file = filename + ".ftptemp"
+        filepath = os.path.join(data_dir, user_pwd, filename)  # 组合服务器数据目录，用户工作目录和文件名
+        temp_path = os.path.join(data_dir, user_pwd, temp_file)  # 临时文件路径
+        position = 0
+        if used_size + file_size > user_quota:
             self.request.send("ERROR: 402 - 可用空间不足".encode("utf-8"))
             return
-        filepath = os.path.join(data_dir, user_pwd, filename)  # 组合服务器数据目录，用户工作目录和文件名
         if os.path.isfile(filepath):
             self.request.send("ERROR: 409 - 资源已存在".encode("utf-8"))
-        else:
-            try:
-                with open(filepath, "wb") as f:
-                    self.request.send(b"200")  # 请求正确
-                    received_size = 0
-                    m = hashlib.md5()
-                    while received_size < size:
-                        if size - received_size > 1024:
-                            buffer_size = 1024
-                        else:
-                            buffer_size = size - received_size
-                        # 开始接收数据
-                        _data = self.request.recv(buffer_size)
-                        received_size += len(_data)
-                        m.update(_data)
-                        f.write(_data)
+            return
+        if os.path.isfile(temp_path):
+            position = os.stat(temp_path).st_size
+        received_size = position  # 已接收部分
+        self.request.send(("200" + " " + str(received_size)).encode("utf-8"))  # 返回请求状态和已接收大小
+        try:
+            m = hashlib.md5()
+            with open(temp_path, "ab") as f:  # 如果文件存在则追加，否则新建
+                while received_size < file_size:
+                    if file_size - received_size > 1024:
+                        buffer_size = 1024
                     else:
-                        md5sum = m.hexdigest()  # 计算md5
-                        md5sum_client = self.request.recv(1024).decode("utf-8")  # 接收md5值
-                        if md5sum == md5sum_client:
-                            config["users"][username]["used"] += size  # 计算已使用空间
-                            self.save()
-                            print("文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, size, md5sum))
-                        else:
-                            os.remove(filepath)  # md5校验失败，删除文件
-                            print("文件[%s]校验失败，源MD5：[%s] 本地MD5：[%s]" % (filename, md5sum_client, md5sum))
-            except PermissionError:
-                self.request.send("ERROR: 403 - 拒绝访问".encode("utf-8"))
+                        buffer_size = file_size - received_size
+                    # 开始接收数据
+                    _data = self.request.recv(buffer_size)
+                    received_size += len(_data)
+                    f.write(_data)
+                    if not position:
+                        m.update(_data)
+                f.flush()
+            md5sum_server = self.md5sum(temp_path) if position else m.hexdigest()  # 计算md5，如果是断点续传则需要等接收完后重新计算
+            md5sum_client = self.request.recv(1024).decode("utf-8")  # 接收客户端源文件md5值
+            if md5sum_server == md5sum_client:
+                os.rename(temp_path, filepath)
+                config["users"][username]["used"] += file_size  # 计算已使用空间
+                self.save()  # 保存用户状态信息
+                print("文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, file_size, md5sum_server))
+            else:
+                os.remove(temp_path)  # md5校验失败，删除文件
+                print("文件[%s]校验失败，源MD5：[%s] 本地MD5：[%s]" % (filename, md5sum_client, md5sum_server))
+        except PermissionError:
+            self.request.send("ERROR: 403 - 拒绝访问".encode("utf-8"))
+        except (ConnectionAbortedError, ConnectionResetError):
+            print("连接中断...")
 
     def get(self, user_info, params):
         """
@@ -105,23 +113,21 @@ class TCPHandler(socketserver.BaseRequestHandler):
         filename = os.path.basename(file)
         filepath = os.path.join(data_dir, user_pwd, file)  # 组合服务器数据目录，用户工作目录和文件名
         if os.path.isfile(filepath):
-            file_size = os.stat(filepath).st_size
+            file_size = os.stat(filepath).st_size  # 计算文件大小
             if file_size:
                 self.request.send(str(file_size).encode("utf-8"))
-                sent_size = int(self.request.recv(1024).decode("utf-8"))  # 等待客户端响应
+                sent_size = int(self.request.recv(1024).decode("utf-8"))  # 客户端回复已接收大小
                 m = hashlib.md5()
                 with open(filepath, "rb") as f:
                     if sent_size:  # 断点续传
                         f.seek(sent_size)
-                        for line in f:
-                            self.request.send(line)
-                        md5sum = self.md5sum(filepath)  # 重新计算完整的md5值
-                    else:
-                        for line in f:
-                            self.request.send(line)
+                    for line in f:
+                        self.request.send(line)
+                        if not sent_size:  # 非断点续传时每次接收都计算md5值，避免重复打开文件
                             m.update(line)
-                        md5sum = m.hexdigest()
-                self.request.send(md5sum.encode("utf-8"))
+                    f.flush()
+                md5sum_client = self.md5sum(filepath) if sent_size else m.hexdigest()  # 计算md5，如果是断点续传则需要等接收完后重新计算
+                self.request.send(md5sum_client.encode("utf-8"))
                 print("文件[%s]发送完成" % filename)
             else:
                 self.request.send("ERROR: 402 - 文件为空".encode("utf-8"))
@@ -270,9 +276,6 @@ class TCPHandler(socketserver.BaseRequestHandler):
         保存配置信息
         :return: None
         """
-        server_info = config_parser()["server"]
-        config["server"] = server_info # 服务器配置信息不要修改
-        config["server"]["data_dir"] = "data" if server_info["data_dir"] is None else server_info["data_dir"]
         pwd = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 获取程序根目录
         config_path = os.path.join(pwd, "config.yml")  # 组合配置文件路径
         if os.path.isfile(config_path):  # 确定配置文件存在并且是文件
@@ -281,6 +284,11 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
     @staticmethod
     def md5sum(file):
+        """
+        计算整个文件的MD5值
+        :param file: 要计算的文件
+        :return: 返回文件MD5值
+        """
         m = hashlib.md5()
         with open(file, "rb") as f:
             for line in f:

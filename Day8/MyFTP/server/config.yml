@@ -1,6 +1,6 @@
 server:
   bind: 0.0.0.0
-  data_dir: data
+  data_dir:
   port: 8888
 users:
   Bob:
