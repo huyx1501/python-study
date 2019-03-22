@@ -20,9 +20,9 @@ class TCPHandler(socketserver.BaseRequestHandler):
         users = config["users"]
         self.request.send(b"Login")
         login_times = 0
-        m = hashlib.md5()
         while login_times < 3:
             try:
+                m = hashlib.md5()
                 auth_data = self.request.recv(1024).decode().split()  # 接收认证消息
                 user_info = users[auth_data[0]]  # 根据用户名查询用户信息
                 if user_info:
@@ -36,6 +36,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
                         return user_info["name"]
                     else:
                         self.request.send("密码错误".encode("utf-8"))
+                        del m
                         login_times += 1
             except KeyError:
                 self.request.send("用户名不存在".encode("utf-8"))

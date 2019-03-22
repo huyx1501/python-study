@@ -24,9 +24,9 @@ class FtpClient(object):
         :return: 登录成功返回当前工作目录
         """
         login_time = 0
-        m = hashlib.md5()
         while login_flag == "Login" and login_time < 3:  # 正常服务器发送的第一个包应该是“Login”
             try:
+                m = hashlib.md5()
                 self.auth_data["username"] = input("Login <username>: ").strip()
                 # self.auth_data["password"] = getpass.getpass("Login <password>: ")
                 self.auth_data["password"] = input("Login <password>: ")  # 由于Pycharm不支持getpass模块，Pycharm调试时用input
@@ -40,6 +40,7 @@ class FtpClient(object):
                         return {"pwd": pwd}
                     else:
                         print("登录失败 : %s" % login_result)
+                        del m
                         login_time += 1
                 else:
                     print("请输入用户名密码")
