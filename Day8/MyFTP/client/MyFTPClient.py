@@ -16,6 +16,7 @@ class FtpClient(object):
     def __init__(self):
         self.client = socket.socket()
         self.auth_data = {}
+        self.login_data = {}
 
     def __login(self, login_flag):
         """
@@ -50,6 +51,24 @@ class FtpClient(object):
         else:
             print("服务器异常，请联系管理员" if login_time < 3 else "登陆失败次数达到上限")
 
+    def getcmd(self):
+        msg = self.client.recv(1024).decode()  # 等待服务器的发送登陆要求
+        self.login_data = self.__login(msg)  # 调用登录接口
+        while self.login_data:
+            input_data = input("[ %s ]# " % self.login_data["pwd"]).split()  # 登录成功后显示命令行界面
+            if not input_data:
+                continue
+            cmd = input_data[0]
+            if hasattr(self, cmd):
+                func = getattr(self, cmd)
+                if len(input_data) > 1:
+                    func(input_data[1])
+                else:
+                    func()
+            elif cmd == "bye":
+                self.client.close()
+                exit()
+
     def connect(self, server_ip, server_port):
         """
         客户端连接服务器的主接口
@@ -59,27 +78,10 @@ class FtpClient(object):
         """
         try:
             self.client.connect((server_ip, server_port))  # 建立连接
-            msg = self.client.recv(1024).decode()  # 等待服务器的发送登陆要求
-            global login_data
-            login_data = self.__login(msg)  # 登录
-            while login_data:
-                input_data = input("[ %s ]# " % login_data["pwd"]).split()  # 登录成功后显示命令行界面
-                if not input_data:
-                    continue
-                cmd = input_data[0]
-                if hasattr(self, cmd):
-                    func = getattr(self, cmd)
-                    if len(input_data) > 1:
-                        func(input_data[1])
-                    else:
-                        func()
-                elif cmd == "bye":
-                    self.client.close()
-                    exit()
-
         except ConnectionRefusedError:
-            print("连接服务器失败...")
-            exit(1)
+            return False
+        else:
+            return True
 
     def put(self, file):
         """
@@ -139,35 +141,32 @@ class FtpClient(object):
             file_size = int(data)
             received_size = position  # 已接收部分
             self.client.send(str(received_size).encode("utf-8"))  # 回应已收到的文件长度
-            try:
-                m = hashlib.md5()
-                with open(temp_file, "ab") as f:  # 如果已经存在在追加，否则新建
-                    while received_size < file_size:
-                        if file_size - received_size > 1024:
-                            buffer = 1024
-                        else:
-                            buffer = file_size - received_size
-                        #  接收并保存数据
-                        _data = self.client.recv(buffer)
-                        received_size += len(_data)
-                        f.write(_data)
-                        if not position:  # 非断点续传时每次接收都计算md5值，避免重复打开文件
-                            m.update(_data)
-                        percent = float(received_size / file_size)
-                        print("\r" + "[下载进度]: %s %.2f%%" % ("|" * int(percent * 50), percent * 100), end="")  # 打印进度条
-                    f.flush()
-                md5sum_client = self.md5sum(temp_file) if position else m.hexdigest()  # 计算md5，如果是断点续传则需要等接收完后重新计算
-                md5sum_server = self.client.recv(1024).decode("utf-8")  # 接收服务器端源文件md5值
-                if md5sum_client == md5sum_server:
-                    os.rename(temp_file, filename)
-                    print("")  # 进度条之后换行
-                    print("文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, file_size, md5sum_client))
-                else:
-                    os.remove(temp_file)  # md5校验失败，删除文件
-                    print("")  # 进度条之后换行
-                    print("文件[%s]校验失败，源MD5：[%s] 本地MD5：[%s]" % (filename, md5sum_server, md5sum_client))
-            except (ConnectionResetError, ConnectionAbortedError):
-                print("连接中断...")
+            m = hashlib.md5()
+            with open(temp_file, "ab") as f:  # 如果已经存在在追加，否则新建
+                while received_size < file_size:
+                    if file_size - received_size > 1024:
+                        buffer = 1024
+                    else:
+                        buffer = file_size - received_size
+                    #  接收并保存数据
+                    _data = self.client.recv(buffer)
+                    received_size += len(_data)
+                    f.write(_data)
+                    if not position:  # 非断点续传时每次接收都计算md5值，避免重复打开文件
+                        m.update(_data)
+                    percent = float(received_size / file_size)
+                    print("\r" + "[下载进度]: %s %.2f%%" % ("|" * int(percent * 50), percent * 100), end="")  # 打印进度条
+                f.flush()
+            md5sum_client = self.md5sum(temp_file) if position else m.hexdigest()  # 计算md5，如果是断点续传则需要等接收完后重新计算
+            md5sum_server = self.client.recv(1024).decode("utf-8")  # 接收服务器端源文件md5值
+            if md5sum_client == md5sum_server:
+                os.rename(temp_file, filename)
+                print("")  # 进度条之后换行
+                print("文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, file_size, md5sum_client))
+            else:
+                os.remove(temp_file)  # md5校验失败，删除文件
+                print("")  # 进度条之后换行
+                print("文件[%s]校验失败，源MD5：[%s] 本地MD5：[%s]" % (filename, md5sum_server, md5sum_client))
         else:
             print(data.strip())
 
@@ -232,7 +231,7 @@ class FtpClient(object):
         if "ERROR" in result:
             print(result.strip())
         else:
-            login_data["pwd"] = result.strip()
+            self.login_data["pwd"] = result.strip()
 
     def mkdir(self, mk_path=""):
         """
@@ -278,5 +277,13 @@ class FtpClient(object):
             return m.hexdigest()
 
 
-client = FtpClient()
-client.connect("127.0.0.1", 8888)
+if __name__ == "__main__":
+    client = FtpClient()
+    con = client.connect("127.0.0.1", 8888)
+    if con:
+        try:
+            client.getcmd()
+        except ConnectionResetError:
+            exit("连接中断...")
+    else:
+        exit("连接服务器失败...")
