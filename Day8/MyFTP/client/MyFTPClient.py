@@ -96,16 +96,21 @@ class FtpClient(object):
                 return_data = self.client.recv(1024).decode("utf-8")  # 接收服务器返回
                 if "200" in return_data:  # 正常返回
                     sent_size = int(return_data.split()[1])
+                    position = sent_size
                     m = hashlib.md5()
                     with open(file, "rb") as f:
-                        if sent_size:  # 断点续传
+                        if position:  # 断点续传
                             f.seek(sent_size)
                         for line in f:
                             self.client.send(line)
-                            if not sent_size:
+                            sent_size += len(line)
+                            if not position:
                                 m.update(line)
+                            percent = float(sent_size / file_size)
+                            print("\r" + "[上传进度]: %s %.2f%%" % ("|" * int(percent*50), percent*100), end="")  # 打印进度条
                     md5sum_client = self.md5sum(file) if sent_size else m.hexdigest()  # 生成文件md5值
                     self.client.send(md5sum_client.encode("utf-8"))
+                    print("")  # 进度条之后换行
                     print("文件[%s]发送完成" % filename)
                 else:
                     print(return_data)
@@ -148,14 +153,18 @@ class FtpClient(object):
                         f.write(_data)
                         if not position:  # 非断点续传时每次接收都计算md5值，避免重复打开文件
                             m.update(_data)
+                        percent = float(received_size / file_size)
+                        print("\r" + "[下载进度]: %s %.2f%%" % ("|" * int(percent * 50), percent * 100), end="")  # 打印进度条
                     f.flush()
                 md5sum_client = self.md5sum(temp_file) if position else m.hexdigest()  # 计算md5，如果是断点续传则需要等接收完后重新计算
                 md5sum_server = self.client.recv(1024).decode("utf-8")  # 接收服务器端源文件md5值
                 if md5sum_client == md5sum_server:
                     os.rename(temp_file, filename)
+                    print("")  # 进度条之后换行
                     print("文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, file_size, md5sum_client))
                 else:
                     os.remove(temp_file)  # md5校验失败，删除文件
+                    print("")  # 进度条之后换行
                     print("文件[%s]校验失败，源MD5：[%s] 本地MD5：[%s]" % (filename, md5sum_server, md5sum_client))
             except (ConnectionResetError, ConnectionAbortedError):
                 print("连接中断...")
