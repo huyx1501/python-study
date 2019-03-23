@@ -145,19 +145,38 @@ class TCPHandler(socketserver.BaseRequestHandler):
             ls_path = args[0][0]
         else:
             ls_path = ""
-        path = os.path.join(config["server"]["data_dir"], user_info["pwd"], ls_path)
-        if platform == "win32":
-            result = os.popen("dir " + path).read()
-            result = result.replace(config["server"]["data_dir"], "")  # 去除结果中服务器数据目录
+        data_dir = config["server"]["data_dir"]
+        user_pwd = user_info["pwd"]  # 获取当前工作目录
+        username = user_info["name"]
+        sep = os.sep
+        ls_path = ls_path.replace("/", sep).replace("\\", sep)
+        dirs = ls_path.split(sep)  # 拆分多级目录
+        if ls_path.startswith(sep):  # 用户目录绝对绝对路径
+            user_pwd = user_info["home"]
+        for d in dirs:
+            if d == "..":
+                user_pwd = os.path.dirname(user_pwd)  # 获取上一级目录
+                if not user_pwd:  # 已经没有上层了
+                    self.request.send("ERROR: 403 - 拒绝访问".encode("utf-8"))
+                    return
+            else:
+                user_pwd = os.path.join(user_pwd, d)
+        path = os.path.join(data_dir, user_pwd)
+        if os.path.isfile(path) or os.path.isdir(path):  # 检查目录或文件是否存在
+            if platform == "win32":
+                result = os.popen("dir " + path).read()
+                result = result.replace(config["server"]["data_dir"] + sep, "")  # 去除结果中服务器数据目录
+            else:
+                result = os.popen("ls -lh" + path).read()
+            if result:
+                result_size = len(result.encode("utf-8"))
+                self.request.send(str(result_size).encode("utf-8"))
+                self.request.recv(1024)  # 等待客户端回应
+                self.request.send(result.encode("utf-8"))
+            else:
+                self.request.send("目录为空".encode("utf-8"))
         else:
-            result = os.popen("ls -lh" + path).read()
-        if result:
-            result_size = len(result.encode("utf-8"))
-            self.request.send(str(result_size).encode("utf-8"))
-            self.request.recv(1024)  # 等待客户端回应
-            self.request.send(result.encode("utf-8"))
-        else:
-            self.request.send("0".encode("utf-8"))
+            self.request.send("ERROR: 404 - 无效的文件或目录".encode("utf-8"))
 
     def cd(self, user_info, params):
         """
@@ -167,21 +186,27 @@ class TCPHandler(socketserver.BaseRequestHandler):
         :return: None
         """
         data_dir = config["server"]["data_dir"]
+        user_pwd = user_info["pwd"]  # 获取当前工作目录
         username = user_info["name"]
-        user_pwd = config["users"][username]["pwd"]  # 获取当前工作目录
         cd_path = params[0]
-        path = os.path.join(data_dir, user_pwd, cd_path)
-        if cd_path == "..":
-            user_pwd = os.path.dirname(user_pwd)  # 获取上一级目录
-            if not user_pwd:
-                self.request.send("ERROR: 403 - 拒绝访问".encode("utf-8"))
+        sep = os.sep
+        cd_path = cd_path.replace("/", sep).replace("\\", sep)
+        dirs = cd_path.split(sep)  # 拆分多级目录
+        if cd_path.startswith(sep):  # 用户目录绝对绝对路径
+            user_pwd = user_info["home"]
+        for d in dirs:
+            if d == "..":
+                user_pwd = os.path.dirname(user_pwd)  # 获取上一级目录
+                if not user_pwd:  # 已经没有上层了
+                    self.request.send("ERROR: 403 - 拒绝访问".encode("utf-8"))
+                    return
             else:
-                self.request.send(user_pwd.encode("utf-8"))
-                config["users"][username]["pwd"] = user_pwd
-        elif os.path.isdir(path):
-            user_pwd = os.path.join(user_pwd, cd_path)
+                user_pwd = os.path.join(user_pwd, d)
+        path = os.path.join(data_dir, user_pwd)
+        if os.path.isdir(path):
             config["users"][username]["pwd"] = user_pwd
             self.request.send(user_pwd.encode("utf-8"))
+            self.save()
         else:
             self.request.send("ERROR: 404 - 无效的目录".encode("utf-8"))
 

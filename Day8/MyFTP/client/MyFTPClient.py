@@ -178,23 +178,27 @@ class FtpClient(object):
         :return: None
         """
         self.client.send(("ls" + " " + path).encode("utf-8"))
-        result_size = int(self.client.recv(1024).decode("utf-8"))
-        if result_size:
-            self.client.send("ACK".encode("utf-8"))
-            received_size = 0
-            result = ""
-            while received_size < result_size:
-                if result_size - received_size > 1024:
-                    buffer_size = 1024
+        result = self.client.recv(1024).decode("utf-8")
+        if result.isdigit():
+            result_size = int(result)
+            if result_size:
+                self.client.send("ACK".encode("utf-8"))
+                received_size = 0
+                result = ""
+                while received_size < result_size:
+                    if result_size - received_size > 1024:
+                        buffer_size = 1024
+                    else:
+                        buffer_size = result_size - received_size
+                    _result = self.client.recv(buffer_size)
+                    result += _result.decode("utf-8")
+                    received_size += len(_result)
                 else:
-                    buffer_size = result_size - received_size
-                _result = self.client.recv(buffer_size)
-                result += _result.decode("utf-8")
-                received_size += len(_result)
+                    print(result.strip())
             else:
-                print(result.strip())
+                print("Nothing")
         else:
-            print("Nothing")
+            print(result)
 
     def rm(self, rm_path=""):
         """
@@ -221,7 +225,6 @@ class FtpClient(object):
             print("请指定切换目录")
             return
         else:
-            cd_path = cd_path.strip("/").strip("\\")  # 去除最后的斜杠
             if cd_path == ".":
                 return
         self.client.send(("cd" + " " + cd_path).encode("utf-8"))  # 发送命令
