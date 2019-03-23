@@ -30,8 +30,10 @@ class TCPHandler(socketserver.BaseRequestHandler):
                     m.update(password.encode("utf-8"))
                     pass_md5 = m.hexdigest()
                     if pass_md5 == auth_data[1]:
-                        pwd = user_info["home"]
-                        config["users"][user_info["name"]]["pwd"] = pwd
+                        pwd = config["users"][user_info["name"]]["pwd"]
+                        if not pwd:  # pwd未设置
+                            pwd = user_info["home"]
+                            config["users"][user_info["name"]]["pwd"] = user_info["home"]
                         self.request.send(("Success" + " " + pwd).encode("utf-8"))
                         return user_info["name"]
                     else:
