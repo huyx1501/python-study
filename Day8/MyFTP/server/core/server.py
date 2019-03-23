@@ -365,6 +365,9 @@ def initial():
         home_dir = os.path.join(data_dir, home_dir)
         if not os.path.isdir(home_dir):  # 目录不存在时为用户创建家目录
             os.makedirs(home_dir, mode=0o755)
+    log_dir = os.path.join(root, "logs")
+    if not os.path.isdir(log_dir):
+        os.makedirs(log_dir, mode=0o755)
     logger("服务器初始化完成...", "INFO")
 
 
