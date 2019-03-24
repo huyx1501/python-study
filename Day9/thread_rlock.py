@@ -31,7 +31,7 @@ def main():
 
 n = 0
 lock = threading.RLock()  # 递归锁
-# lock = threading.Lock()
+# lock = threading.Lock()  # 如果是非递归锁则子程序会死锁
 t = threading.Thread(target=main)
 t.start()
 

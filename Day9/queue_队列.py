@@ -3,7 +3,6 @@
 # Author: Bob
 
 import queue
-import threading
 
 print("Queue".center(50, "="))
 q = queue.Queue(maxsize=3)  # 先进先出队列， maxsize设置队列最大长度

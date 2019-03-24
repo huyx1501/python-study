@@ -24,4 +24,3 @@ for thread in thread_list:
     thread.join()  # 等待线程结束
 
 print("Number: ", n)
-

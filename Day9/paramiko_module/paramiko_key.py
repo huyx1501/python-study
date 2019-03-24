@@ -3,7 +3,6 @@
 # Author: Bob
 
 import paramiko
-import os
 
 # 创建SSH Key对象
 ssh_key = paramiko.RSAKey.from_private_key_file("id_rsa")
