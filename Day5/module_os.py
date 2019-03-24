@@ -38,13 +38,13 @@ print("listdir: ", os.listdir(r"C:\Users\Public"))
 print("stat: ", os.stat(r"C:\Users\Public"))
 
 # sep属性,当前系统的路径分隔符
-print("stat: ", os.sep)
+print("sep属性: ", os.sep)
 
 # linesep属性,当前系统的行结尾符
 print("linesep: ", os.linesep.encode())
 
 # pathsep属性,当前系统变量PATH所用的分隔符
-print("linesep: ", os.pathsep)
+print("pathsep属性: ", os.pathsep)
 
 # environ属性,当前系统的环境变量(字典)
 print("environ: ", os.environ)
