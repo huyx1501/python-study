@@ -78,7 +78,7 @@ def manage_class(school):
     classes = school.classes  # 获取学校所有班级
     if classes:  # 判断学校是否已经建立了班级
         for i, cl in enumerate(classes):  # 循环打印出所有班级
-            print("%s. %s" % (i + 1, cl.name - cl.teacher))
+            print("%s. %s" % (i + 1, cl.name + " - " + cl.teacher.name))
         try:
             choice = int(input("请选择要修改的班级："))
             cl = classes[choice - 1]
