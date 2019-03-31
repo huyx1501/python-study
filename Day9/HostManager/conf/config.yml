@@ -1,0 +1,24 @@
+groups:
+  - group_name: localgroup  # 组名
+    hosts:  # 组内主机
+      - hostname: host1  # 主机名
+        ipaddr: 192.168.80.10  # 主机IP
+        port: 22  # 主机端口
+        username: root  # 连接用户名
+        password: 123456  # 密码
+
+      - hostname: host2
+        ipaddr: 192.168.80.11
+        port: 22
+        username: root
+        password: 123456
+    sftp_root: /home/sftp  # 组属性
+
+  - group_name: remote_group
+    hosts:
+      - hostname: host3
+        ipaddr: 192.168.80.12
+        port: 22
+        username: root
+        password: 123456
+    sftp_root: /tmp/sftp
