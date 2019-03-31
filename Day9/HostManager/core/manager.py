@@ -5,7 +5,7 @@
 import os
 import yaml
 import threading
-import control
+from . import control
 
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 config_file = os.path.join(root_dir, "conf", "config.yml")
@@ -92,7 +92,3 @@ def main():
                 shell(cmd, select_host)
     except (ValueError, IndexError):
         print("非法输入")
-
-
-if __name__ == "__main__":
-    main()
