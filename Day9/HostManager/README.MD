@@ -22,3 +22,6 @@ README.md(本文档）
     1. 直接输入命令在远程主机执行命令
     2. 输入put命令上传文件到远程目录
     3. 输入bye退出程序
+
+### 流程图
+![image](https://raw.githubusercontent.com/huyx1501/python-study/master/Day9/HostManager/%E4%B8%BB%E6%9C%BA%E7%AE%A1%E7%90%86%E7%B3%BB%E7%BB%9F%E5%9F%BA%E6%9C%AC%E6%B5%81%E7%A8%8B%E5%9B%BE.jpg)
