@@ -39,9 +39,23 @@ class Connection(object):
         self.login = False  # 客户端是否已登录
         self.hello = False  # 是否已发送登录标志
         self.user = None  # 已验证用户信息
-        self.cmd = None  # 当前正在执行的命令
-        self.cmd_state = None  # 命令执行状态
-        self.cmd_data = None  # 命令执行的中间结果
+        self.state = {}
+        self.reset()
+
+    def reset(self):
+        """
+        重置状态
+        :return: None
+        """
+        self.state["cmd"] = "cmd"
+        self.state["cmd_state"] = None
+        self.state["cmd_date"] = None
+        self.state["filepath"] = ""
+        self.state["temp_path"] = ""
+        self.state["file_size"] = 0
+        self.state["received_size"] = 0
+        self.state["break"] = False
+        self.state["md5"] = None
 
     def handler(self):
         if not self.login and not self.hello:
@@ -96,12 +110,13 @@ class Connection(object):
 
     def get_cmd(self):
         try:
-            if not self.cmd_state:
+            if not self.state["cmd_state"]:
                 message = self.conn.recv(1024).decode("utf-8").split()  # 获取客户端命令和参数
                 if not message:
                     logger("客户端连接中断", "WARN", str(self.addr))
                     print("客户[%s]端连接中断..." % str(self.addr))
                     selector.unregister(self.conn)
+                    self.save()
                     return
                 cmd = message[0]
                 if hasattr(self, cmd):  # 检查命令是否可用
@@ -114,107 +129,123 @@ class Connection(object):
                 else:
                     logger("ERROR: 405 - 无效的指令", "WARN", str(self.addr))
                     self.conn.send("ERROR: 405 - 无效的指令".encode("utf-8"))
-            else:
-                func = getattr(self, self.cmd)
+            else:  # 非命令交互
+                func = getattr(self, self.state["cmd"])
                 func()
         except (ConnectionResetError, ConnectionAbortedError) as e:
             logger("客户端连接中断：[%s]" % e, "WARN", str(self.addr))
             print("客户[%s]端连接中断..." % str(self.addr))
             selector.unregister(self.conn)
+            self.save()
 
-    def put(self, params):
+    def put(self, *args):
         """
         用户上传文件
-        :param params: 命令参数
+        :param args: 上传参数
         :return: None
         """
-        user_pwd = self.user["pwd"]  # 用户当前工作目录
-        username = self.user["name"]
-        used_size = int(self.user["used"])  # 已用空间
-        data_dir = config["server"]["data_dir"]  # 服务器数据目录
-        user_quota = int(self.user["quota"])  # 用户磁盘配合
-        filename = params[0]  # 第一个参数为文件名
-        file_size = int(params[1])  # 第二个参数为文件大小
-        temp_file = filename + ".ftptemp"
-        filepath = os.path.join(data_dir, user_pwd, filename)  # 组合服务器数据目录，用户工作目录和文件名
-        temp_path = os.path.join(data_dir, user_pwd, temp_file)  # 临时文件路径
-        position = 0
-        if used_size + file_size > user_quota:
-            logger("ERROR: 402 - 可用空间不足", "ERROR", str(self.addr))
-            self.conn.send("ERROR: 402 - 可用空间不足".encode("utf-8"))
-            return
-        if os.path.isfile(filepath):
-            logger("ERROR: 409 - 资源已存在：[%s]" % filename, "ERROR", str(self.addr))
-            self.conn.send("ERROR: 409 - 资源已存在".encode("utf-8"))
-            return
-        if os.path.isfile(temp_path):
-            position = os.stat(temp_path).st_size
-        received_size = position  # 已接收部分
-        self.conn.send(("200" + " " + str(received_size)).encode("utf-8"))  # 返回请求状态和已接收大小
-        m = hashlib.md5()
-        with open(temp_path, "ab") as f:  # 如果文件存在则追加，否则新建
-            while received_size < file_size:
-                if file_size - received_size > 1024:
-                    buffer_size = 1024
-                else:
-                    buffer_size = file_size - received_size
-                # 开始接收数据
-                _data = self.conn.recv(buffer_size)
-                received_size += len(_data)
-                f.write(_data)
-                if not position:
-                    m.update(_data)
-            f.flush()
-        md5sum_server = self.md5sum(temp_path) if position else m.hexdigest()  # 计算md5，如果是断点续传则需要等接收完后重新计算
-        md5sum_client = self.conn.recv(1024).decode("utf-8")  # 接收客户端源文件md5值
-        if md5sum_server == md5sum_client:
-            os.rename(temp_path, filepath)
-            config["users"][username]["used"] += file_size  # 计算已使用空间
-            self.save()  # 保存用户状态信息
-            info = "文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, file_size, md5sum_server)
-            logger(info, "INFO", str(self.addr))
-            print(info)
+        if not self.state["cmd_state"]:
+            user_pwd = self.user["pwd"]  # 用户当前工作目录
+            used_size = int(self.user["used"])  # 已用空间
+            data_dir = config["server"]["data_dir"]  # 服务器数据目录
+            user_quota = int(self.user["quota"])  # 用户磁盘配合
+            filename = args[0][0]  # 第一个参数为文件名
+            file_size = self.state["file_size"] = int(args[0][1])  # 第二个参数为文件大小
+            temp_file = filename + ".ftptemp"
+            filepath = self.state["filepath"] = os.path.join(data_dir, user_pwd, filename)  # 组合服务器数据目录，用户工作目录和文件名
+            temp_path = self.state["temp_path"] = os.path.join(data_dir, user_pwd, temp_file)  # 临时文件路径
+            self.state["md5"] = hashlib.md5()
+            if used_size + file_size > user_quota:
+                logger("ERROR: 402 - 可用空间不足", "ERROR", str(self.addr))
+                self.conn.send("ERROR: 402 - 可用空间不足".encode("utf-8"))
+                return
+            if os.path.isfile(filepath):
+                logger("ERROR: 409 - 资源已存在：[%s]" % filename, "ERROR", str(self.addr))
+                self.conn.send("ERROR: 409 - 资源已存在".encode("utf-8"))
+                return
+            if os.path.isfile(temp_path):
+                self.state["received_size"] = os.stat(temp_path).st_size
+                self.state["break"] = True
+            self.conn.send(("200" + " " + str(self.state["received_size"])).encode("utf-8"))  # 返回请求状态和已接收大小
+            self.state["cmd"] = "put"
+            self.state["cmd_state"] = "wait_ack"
         else:
-            os.remove(temp_path)  # md5校验失败，删除文件
-            info = "文件[%s]校验失败，源MD5：[%s] 本地MD5：[%s]" % (filename, md5sum_client, md5sum_server)
-            logger(info, "ERROR", str(self.addr))
-            print(info)
+            file_size = self.state["file_size"]
+            received_size = self.state["received_size"]
+            temp_path = self.state["temp_path"]
+            if file_size > received_size:
+                with open(temp_path, "ab") as f:  # 如果文件存在则追加，否则新建
+                    if file_size - received_size > 1024:
+                        buffer_size = 1024
+                    else:
+                        buffer_size = file_size - received_size
+                    # 开始接收数据
+                    _data = self.conn.recv(buffer_size)
+                    self.state["received_size"] += len(_data)
+                    f.write(_data)
+                    if not self.state["break"]:
+                        self.state["md5"].update(_data)
+                    f.flush()
+                    self.state["cmd_state"] = "received"
+            else:
+                # 计算md5，如果是断点续传则需要等接收完后重新计算
+                md5sum_server = self.md5sum(self.state["temp_path"]) if self.state["break"] else self.state["md5"].hexdigest()
+                md5sum_client = self.conn.recv(1024).decode("utf-8")  # 接收客户端源文件md5值
+                filename = os.path.basename(self.state["filepath"])
+                if md5sum_server == md5sum_client:
+                    os.rename(self.state["temp_path"], self.state["filepath"])  # 接收完毕临时文件重命名为真实文件名
+                    config["users"][self.user["name"]]["used"] += self.state["file_size"]  # 计算已使用空间
+                    self.user = config["users"][self.user["name"]]  # 重新获取用户信息
+                    info = "文件[%s]接收成功，大小：[%s]，MD5：[%s]" % (filename, self.state["file_size"], md5sum_server)
+                    logger(info, "INFO", str(self.addr))
+                    print(info)
+                else:
+                    os.remove(self.state["temp_path"])  # md5校验失败，删除文件
+                    info = "文件[%s]校验失败，源MD5：[%s] 本地MD5：[%s]" % (filename, md5sum_client, md5sum_server)
+                    logger(info, "ERROR", str(self.addr))
+                    print(info)
+                self.reset()  # 重置状态
 
-    def get(self, params):
+    def get(self, *args):
         """
         用户下载文件
-        :param params: 命令参数
+        :param args: 下载参数
         :return: None
         """
-        user_pwd = self.user["pwd"]  # 用户当前工作目录
-        data_dir = config["server"]["data_dir"]  # 服务器数据目录
-        file = params[0]  # 第一个参数为文件名和相对路径
-        filename = os.path.basename(file)
-        filepath = os.path.join(data_dir, user_pwd, file)  # 组合服务器数据目录，用户工作目录和文件名
-        if os.path.isfile(filepath):
-            file_size = os.stat(filepath).st_size  # 计算文件大小
-            if file_size:
-                self.conn.send(str(file_size).encode("utf-8"))
-                sent_size = int(self.conn.recv(1024).decode("utf-8"))  # 客户端回复已接收大小
-                m = hashlib.md5()
-                with open(filepath, "rb") as f:
-                    if sent_size:  # 断点续传
-                        f.seek(sent_size)
-                    for line in f:
-                        self.conn.send(line)
-                        if not sent_size:  # 非断点续传时每次接收都计算md5值，避免重复打开文件
-                            m.update(line)
-                    f.flush()
-                md5sum_client = self.md5sum(filepath) if sent_size else m.hexdigest()  # 计算md5，如果是断点续传则需要等接收完后重新计算
-                self.conn.send(md5sum_client.encode("utf-8"))
-                logger("文件[%s]发送完成" % filename, "INFO", str(self.addr))
-                print("文件[%s]发送完成" % filename)
+        if not self.state["cmd_state"]:
+            user_pwd = self.user["pwd"]  # 用户当前工作目录
+            data_dir = config["server"]["data_dir"]  # 服务器数据目录
+            file = args[0][0]  # 第一个参数为文件名和相对路径
+            filepath = self.state["filepath"] = os.path.join(data_dir, user_pwd, file)  # 组合服务器数据目录，用户工作目录和文件名
+            if os.path.isfile(filepath):
+                file_size = os.stat(filepath).st_size  # 计算文件大小
+                if file_size:
+                    self.conn.send(str(file_size).encode("utf-8"))
+                    self.state["cmd"] = "get"
+                    self.state["cmd_state"] = "wait_ack"
+                else:
+                    logger("ERROR: 402 - 文件为空", "ERROR", str(self.addr))
+                    self.conn.send("ERROR: 402 - 文件为空".encode("utf-8"))
             else:
-                logger("ERROR: 402 - 文件为空", "ERROR", str(self.addr))
-                self.conn.send("ERROR: 402 - 文件为空".encode("utf-8"))
+                logger("ERROR: 404 - 资源不存在：[%s]" % file, "ERROR", str(self.addr))
+                self.conn.send("ERROR: 404 - 资源不存在".encode("utf-8"))
         else:
-            logger("ERROR: 404 - 资源不存在：[%s]" % file, "ERROR", str(self.addr))
-            self.conn.send("ERROR: 404 - 资源不存在".encode("utf-8"))
+            sent_size = int(self.conn.recv(1024).decode("utf-8"))  # 客户端回复已接收大小
+            filename = os.path.basename(self.state["filepath"])
+            m = hashlib.md5()
+            with open(self.state["filepath"], "rb") as f:
+                if sent_size:  # 断点续传
+                    f.seek(sent_size)
+                for line in f:
+                    self.conn.send(line)
+                    if not sent_size:  # 非断点续传时每次接收都计算md5值，避免重复打开文件
+                        m.update(line)
+            # 计算md5，如果是断点续传则需要等接收完后重新计算
+            md5sum_client = self.md5sum(self.state["filepath"]) if sent_size else m.hexdigest()
+            self.conn.send(md5sum_client.encode("utf-8"))
+            logger("文件[%s]发送完成" % filename, "INFO", str(self.addr))
+            print("文件[%s]发送完成" % filename)
+            self.reset()  # 重置状态
 
     def ls(self, *args):
         """
@@ -222,8 +253,7 @@ class Connection(object):
         :param args: 命令参数
         :return: None
         """
-        if not self.cmd_state:
-            self.cmd = "ls"
+        if not self.state["cmd_state"]:
             if args:
                 ls_path = args[0][0]
             else:
@@ -248,13 +278,14 @@ class Connection(object):
             if os.path.isfile(path) or os.path.isdir(path):  # 检查目录或文件是否存在
                 if platform == "win32":
                     result = os.popen("dir " + path).read()
-                    self.cmd_data = result.replace(config["server"]["data_dir"] + sep, "")  # 去除结果中服务器数据目录
+                    self.state["cmd_data"] = result.replace(config["server"]["data_dir"] + sep, "")  # 去除结果中服务器数据目录
                 else:
-                    self.cmd_data = os.popen("ls -lh" + path).read()
-                if self.cmd_data:
-                    result_size = len(self.cmd_data.encode("utf-8"))
+                    self.state["cmd_data"] = os.popen("ls -lh" + path).read()
+                if self.state["cmd_data"]:
+                    result_size = len(self.state["cmd_data"].encode("utf-8"))
                     self.conn.send(str(result_size).encode("utf-8"))  # 发送结果集大小
-                    self.cmd_state = "wait_ack"
+                    self.state["cmd"] = "ls"
+                    self.state["cmd_state"] = "wait_ack"
                 else:
                     self.conn.send("目录为空".encode("utf-8"))
             else:
@@ -262,11 +293,11 @@ class Connection(object):
                 self.conn.send("ERROR: 404 - 无效的文件或目录".encode("utf-8"))
         else:
                 self.conn.recv(1024)  # 等待客户端回应
-                self.conn.send(self.cmd_data.encode("utf-8"))
+                self.conn.send(self.state["cmd_data"].encode("utf-8"))
                 # 清除状态
-                self.cmd_data = None
-                self.cmd_state = None
-                self.cmd = None
+                self.state["cmd"] = None
+                self.state["cmd_state"] = None
+                self.state["cmd_data"] = None
 
     def cd(self, params):
         """
@@ -295,8 +326,9 @@ class Connection(object):
         path = os.path.join(data_dir, user_pwd)
         if os.path.isdir(path):
             config["users"][username]["pwd"] = user_pwd
+            self.user = config["users"][self.user["name"]]  # 重新获取用户信息
             self.conn.send(user_pwd.encode("utf-8"))
-            self.save()
+            # self.save()
         else:
             logger("ERROR: 404 - 无效的目录：[%s]" % cd_path, "ERROR", str(self.addr))
             self.conn.send("ERROR: 404 - 无效的目录".encode("utf-8"))
@@ -343,10 +375,12 @@ class Connection(object):
             shutil.rmtree(path)
             if config["users"][username]["used"] - size < 0:
                 config["users"][username]["used"] = 0
-                self.save()
+                self.user = config["users"][self.user["name"]]  # 重新获取用户信息
+                # self.save()
             else:
                 config["users"][username]["used"] -= size
-                self.save()
+                self.user = config["users"][self.user["name"]]  # 重新获取用户信息
+                # self.save()
             logger("目录删除成功：[%s]" % rm_path, "INFO", str(self.addr))
             self.conn.send("Success".encode())
         else:
@@ -362,7 +396,7 @@ class Connection(object):
         if os.path.isfile(config_path):  # 确定配置文件存在并且是文件
             with open(config_path, "w") as f:
                 yaml.dump(config, f)
-            self.user = config["user"][self.user["name"]]  # 重新获取用户信息
+            # self.user = config["users"][self.user["name"]]  # 重新获取用户信息
         else:
             exit("写入配置文件失败")
 
