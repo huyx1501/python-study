@@ -4,7 +4,7 @@
 
 import socket
 import selectors
-
+import queue
 
 def data_handler(source_data):
     """
@@ -36,8 +36,10 @@ def read(_conn):
     try:
         data = _conn.recv(1024).decode()
         if data:
-            r_data = data_handler(data)  # 处理数据
-            _conn.sendall(r_data.encode())  # 发送数据
+            # _conn.sendall(r_data.encode())  # 发送数据
+            data_queue.put(data)
+            selector.unregister(_conn)  # 取消之前注册的EVENT_WRITE
+            selector.register(_conn, selectors.EVENT_WRITE, send)  # 注册EVENT_WRITE
         else:
             print("客户端连接已断开", _conn.getpeername())
             selector.unregister(_conn)  # 取消当前连接的注册
@@ -46,7 +48,17 @@ def read(_conn):
         selector.unregister(_conn)  # 取消当前连接的注册
 
 
+def send(_conn):
+    data = data_queue.get()
+    r_data = data_handler(data)  # 处理数据
+    _conn.send(data.encode())
+    _conn.send(r_data.encode())
+    selector.unregister(_conn)  # 发送完毕，取消注册
+    selector.register(_conn, selectors.EVENT_READ, read)  # 重新注册EVENT_READ事件
+
+
 selector = selectors.DefaultSelector()  # 初始化一个selectors对象
+data_queue = queue.Queue()
 server = socket.socket()
 server.bind(("0.0.0.0", 8888))
 server.listen(1000)
