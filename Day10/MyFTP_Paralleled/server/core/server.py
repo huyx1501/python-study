@@ -33,12 +33,15 @@ class Server(object):
 
 class Connection(object):
     def __init__(self, conn, addr):
-        self.conn = conn
-        self.addr = addr
+        self.conn = conn  # 已建立的Socket连接
+        self.addr = addr  # 客户端地址
         self.login_times = 0
-        self.login = False
-        self.hello = False
-        self.user = None
+        self.login = False  # 客户端是否已登录
+        self.hello = False  # 是否已发送登录标志
+        self.user = None  # 已验证用户信息
+        self.cmd = None  # 当前正在执行的命令
+        self.cmd_state = None  # 命令执行状态
+        self.cmd_data = None  # 命令执行的中间结果
 
     def handler(self):
         if not self.login and not self.hello:
@@ -93,23 +96,27 @@ class Connection(object):
 
     def get_cmd(self):
         try:
-            message = self.conn.recv(1024).decode("utf-8").split()  # 获取客户端命令和参数
-            if not message:
-                logger("客户端连接中断", "WARN", str(self.addr))
-                print("客户[%s]端连接中断..." % str(self.addr))
-                selector.unregister(self.conn)
-                return
-            cmd = message[0]
-            if hasattr(self, cmd):  # 检查命令是否可用
-                func = getattr(self, cmd)
-                if len(message) > 1:
-                    message.pop(0)
-                    func(message)  # 有参数命令
+            if not self.cmd_state:
+                message = self.conn.recv(1024).decode("utf-8").split()  # 获取客户端命令和参数
+                if not message:
+                    logger("客户端连接中断", "WARN", str(self.addr))
+                    print("客户[%s]端连接中断..." % str(self.addr))
+                    selector.unregister(self.conn)
+                    return
+                cmd = message[0]
+                if hasattr(self, cmd):  # 检查命令是否可用
+                    func = getattr(self, cmd)
+                    if len(message) > 1:
+                        message.pop(0)
+                        func(message)  # 有参数命令
+                    else:
+                        func()  # 无参数命令
                 else:
-                    func()  # 无参数命令
+                    logger("ERROR: 405 - 无效的指令", "WARN", str(self.addr))
+                    self.conn.send("ERROR: 405 - 无效的指令".encode("utf-8"))
             else:
-                logger("ERROR: 405 - 无效的指令", "WARN", str(self.addr))
-                self.conn.send("ERROR: 405 - 无效的指令".encode("utf-8"))
+                func = getattr(self, self.cmd)
+                func()
         except (ConnectionResetError, ConnectionAbortedError) as e:
             logger("客户端连接中断：[%s]" % e, "WARN", str(self.addr))
             print("客户[%s]端连接中断..." % str(self.addr))
@@ -215,43 +222,51 @@ class Connection(object):
         :param args: 命令参数
         :return: None
         """
-        if args:
-            ls_path = args[0][0]
+        if not self.cmd_state:
+            self.cmd = "ls"
+            if args:
+                ls_path = args[0][0]
+            else:
+                ls_path = ""
+            data_dir = config["server"]["data_dir"]
+            user_pwd = self.user["pwd"]  # 获取当前工作目录
+            sep = os.sep
+            ls_path = ls_path.replace("/", sep).replace("\\", sep)
+            dirs = ls_path.split(sep)  # 拆分多级目录
+            if ls_path.startswith(sep):  # 用户目录绝对绝对路径
+                user_pwd = self.user["home"]
+            for d in dirs:
+                if d == "..":
+                    user_pwd = os.path.dirname(user_pwd)  # 获取上一级目录
+                    if not user_pwd:  # 已经没有上层了
+                        logger("ERROR: 403 - 拒绝访问：[%s]" % ls_path, "ERROR", str(self.addr))
+                        self.conn.send("ERROR: 403 - 拒绝访问".encode("utf-8"))
+                        return
+                else:
+                    user_pwd = os.path.join(user_pwd, d)
+            path = os.path.join(data_dir, user_pwd)
+            if os.path.isfile(path) or os.path.isdir(path):  # 检查目录或文件是否存在
+                if platform == "win32":
+                    result = os.popen("dir " + path).read()
+                    self.cmd_data = result.replace(config["server"]["data_dir"] + sep, "")  # 去除结果中服务器数据目录
+                else:
+                    self.cmd_data = os.popen("ls -lh" + path).read()
+                if self.cmd_data:
+                    result_size = len(self.cmd_data.encode("utf-8"))
+                    self.conn.send(str(result_size).encode("utf-8"))  # 发送结果集大小
+                    self.cmd_state = "wait_ack"
+                else:
+                    self.conn.send("目录为空".encode("utf-8"))
+            else:
+                logger("ERROR: 404 - 无效的文件或目录：[%s]" % ls_path, "ERROR", str(self.addr))
+                self.conn.send("ERROR: 404 - 无效的文件或目录".encode("utf-8"))
         else:
-            ls_path = ""
-        data_dir = config["server"]["data_dir"]
-        user_pwd = self.user["pwd"]  # 获取当前工作目录
-        sep = os.sep
-        ls_path = ls_path.replace("/", sep).replace("\\", sep)
-        dirs = ls_path.split(sep)  # 拆分多级目录
-        if ls_path.startswith(sep):  # 用户目录绝对绝对路径
-            user_pwd = self.user["home"]
-        for d in dirs:
-            if d == "..":
-                user_pwd = os.path.dirname(user_pwd)  # 获取上一级目录
-                if not user_pwd:  # 已经没有上层了
-                    logger("ERROR: 403 - 拒绝访问：[%s]" % ls_path, "ERROR", str(self.addr))
-                    self.conn.send("ERROR: 403 - 拒绝访问".encode("utf-8"))
-                    return
-            else:
-                user_pwd = os.path.join(user_pwd, d)
-        path = os.path.join(data_dir, user_pwd)
-        if os.path.isfile(path) or os.path.isdir(path):  # 检查目录或文件是否存在
-            if platform == "win32":
-                result = os.popen("dir " + path).read()
-                result = result.replace(config["server"]["data_dir"] + sep, "")  # 去除结果中服务器数据目录
-            else:
-                result = os.popen("ls -lh" + path).read()
-            if result:
-                result_size = len(result.encode("utf-8"))
-                self.conn.send(str(result_size).encode("utf-8"))
                 self.conn.recv(1024)  # 等待客户端回应
-                self.conn.send(result.encode("utf-8"))
-            else:
-                self.conn.send("目录为空".encode("utf-8"))
-        else:
-            logger("ERROR: 404 - 无效的文件或目录：[%s]" % ls_path, "ERROR", str(self.addr))
-            self.conn.send("ERROR: 404 - 无效的文件或目录".encode("utf-8"))
+                self.conn.send(self.cmd_data.encode("utf-8"))
+                # 清除状态
+                self.cmd_data = None
+                self.cmd_state = None
+                self.cmd = None
 
     def cd(self, params):
         """
@@ -429,7 +444,7 @@ def main():
     主程序
     :return: None
     """
-    global platform, root, selector, config, connections
+    global platform, root, selector, config
     platform = sys.platform
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 获取程序根目录
     selector = selectors.DefaultSelector()
