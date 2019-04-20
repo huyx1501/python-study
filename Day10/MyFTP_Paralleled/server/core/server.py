@@ -10,6 +10,10 @@ import sys
 import shutil
 import hashlib
 import time
+try:
+    from yaml import CLoader as yaml_Loader
+except ImportError:
+    from yaml import Loader as yaml_Loader
 
 
 class Server(object):
@@ -449,7 +453,7 @@ def config_parser():
     config_path = os.path.join(root, "config.yml")  # 组合配置文件路径
     if os.path.isfile(config_path):  # 确定配置文件存在并且是文件
         with open(config_path, "r") as f:
-            return yaml.load(f, yaml.CLoader if yaml.CLoader else yaml.Loader)  # 读取并返回文件内容
+            return yaml.load(f, yaml_Loader)  # 读取并返回文件内容
 
 
 def initial():
