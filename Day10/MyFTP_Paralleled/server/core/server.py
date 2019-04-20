@@ -58,7 +58,7 @@ class Connection(object):
         self.state["filepath"] = ""
         self.state["temp_path"] = ""
         self.state["file_size"] = 0
-        self.state["received_size"] = 0
+        self.state["transferred_size"] = 0
         self.state["break"] = False
         self.state["md5"] = None
 
@@ -85,7 +85,7 @@ class Connection(object):
             m = hashlib.md5()
             auth_data = ""
             try:
-                auth_data = self.conn.recv(1024).decode().split()  # 接收认证消息
+                auth_data = self.conn.recv(1024).decode("utf-8").split()  # 接收认证消息
                 user_info = users[auth_data[0]]  # 根据用户名查询用户信息
                 if user_info:
                     password = user_info["key"]  # 取出用户密码
@@ -138,10 +138,19 @@ class Connection(object):
                 func = getattr(self, self.state["cmd"])
                 func()
         except (ConnectionResetError, ConnectionAbortedError) as e:
+            if self.state["opened_file"]:
+                self.state["opened_file"].close()  # 发生异常时关闭打开的文件
             logger("客户端连接中断：[%s]" % e, "WARN", str(self.addr))
             print("客户[%s]端连接中断..." % str(self.addr))
             selector.unregister(self.conn)
             self.save()
+        except AssertionError:
+            if self.state["opened_file"]:
+                self.state["opened_file"].close()  # 发生异常时关闭打开的文件
+            self.conn.send("400".encode("utf-8"))  # 向客户端发送错误代码
+            logger("文件[%s]发送失败" % os.path.basename(self.state["filepath"]), "ERROR", str(self.addr))
+            print("客户[%s]接收文件失败..." % str(self.addr))
+            self.reset()
 
     def put(self, *args):
         """
@@ -169,14 +178,14 @@ class Connection(object):
                 self.conn.send("ERROR: 409 - 资源已存在".encode("utf-8"))
                 return
             if os.path.isfile(temp_path):
-                self.state["received_size"] = os.stat(temp_path).st_size
+                self.state["transferred_size"] = os.stat(temp_path).st_size
                 self.state["break"] = True
-            self.conn.send(("200" + " " + str(self.state["received_size"])).encode("utf-8"))  # 返回请求状态和已接收大小
+            self.conn.send(("200" + " " + str(self.state["transferred_size"])).encode("utf-8"))  # 返回请求状态和已接收大小
             self.state["cmd"] = "put"
             self.state["cmd_state"] = "wait_ack"
         else:
             file_size = self.state["file_size"]
-            received_size = self.state["received_size"]
+            received_size = self.state["transferred_size"]
             temp_path = self.state["temp_path"]
             if not self.state["opened_file"]:
                 self.state["opened_file"] = open(temp_path, "ab")  # 如果文件存在则追加，否则新建
@@ -187,7 +196,7 @@ class Connection(object):
                     buffer_size = file_size - received_size
                 # 开始接收数据
                 _data = self.conn.recv(buffer_size)
-                self.state["received_size"] += len(_data)
+                self.state["transferred_size"] += len(_data)
                 self.state["opened_file"].write(_data)
                 if not self.state["break"]:
                     self.state["md5"].update(_data)
@@ -225,11 +234,12 @@ class Connection(object):
             file = args[0][0]  # 第一个参数为文件名和相对路径
             filepath = self.state["filepath"] = os.path.join(data_dir, user_pwd, file)  # 组合服务器数据目录，用户工作目录和文件名
             if os.path.isfile(filepath):
-                file_size = os.stat(filepath).st_size  # 计算文件大小
+                file_size = self.state["file_size"] = os.stat(filepath).st_size  # 计算文件大小
                 if file_size:
                     self.conn.send(str(file_size).encode("utf-8"))
                     self.state["cmd"] = "get"
                     self.state["cmd_state"] = "wait_ack"
+                    self.state["md5"] = hashlib.md5()
                 else:
                     logger("ERROR: 402 - 文件为空", "ERROR", str(self.addr))
                     self.conn.send("ERROR: 402 - 文件为空".encode("utf-8"))
@@ -237,22 +247,34 @@ class Connection(object):
                 logger("ERROR: 404 - 资源不存在：[%s]" % file, "ERROR", str(self.addr))
                 self.conn.send("ERROR: 404 - 资源不存在".encode("utf-8"))
         else:
-            sent_size = int(self.conn.recv(1024).decode("utf-8"))  # 客户端回复已接收大小
-            filename = os.path.basename(self.state["filepath"])
-            m = hashlib.md5()
-            with open(self.state["filepath"], "rb") as f:
-                if sent_size:  # 断点续传
-                    f.seek(sent_size)
-                for line in f:
-                    self.conn.send(line)
-                    if not sent_size:  # 非断点续传时每次接收都计算md5值，避免重复打开文件
-                        m.update(line)
-            # 计算md5，如果是断点续传则需要等接收完后重新计算
-            md5sum_client = self.md5sum(self.state["filepath"]) if sent_size else m.hexdigest()
-            self.conn.send(md5sum_client.encode("utf-8"))
-            logger("文件[%s]发送完成" % filename, "INFO", str(self.addr))
-            print("文件[%s]发送完成" % filename)
-            self.reset()  # 重置状态
+            file_size = self.state["file_size"]
+            sent_size = self.state["transferred_size"]
+            if file_size > sent_size:
+                if not self.state["opened_file"]:
+                    self.state["opened_file"] = open(self.state["filepath"], "rb")
+                    self.state["transferred_size"] = int(self.conn.recv(1024).decode("utf-8"))  # 客户端回复已接收大小
+                    if self.state["transferred_size"]:  # 处理断点续传
+                        self.state["opened_file"].seek(self.state["transferred_size"])
+                        self.state["break"] = True
+                else:  # 正式发送文件时应该收到客户端的确认信号
+                    ack = self.conn.recv(1024).decode("utf-8")
+                    assert ack.strip() == "ACK"  # 断言收到的是"ACK"
+                line = self.state["opened_file"].read(1024)  # 单次读取1024字节
+                self.conn.send(line)  # 发送数据
+                self.state["transferred_size"] += len(line)  # 累计已发送长度
+                if not self.state["break"]:  # 非断点续传时每次接收都计算md5值
+                    self.state["md5"].update(line)
+            else:  # 文件传输完成处理后续任务
+                self.conn.recv(1024)  # 最后一次ACK
+                self.state["cmd_state"] = "sent_done"
+                self.state["opened_file"].close()
+                # 计算MD5值
+                md5sum_server = self.md5sum(self.state["filepath"]) if self.state["break"] else self.state["md5"].hexdigest()
+                self.conn.send(md5sum_server.encode("utf-8"))  # 发送MD5值
+                filename = os.path.basename(self.state["filepath"])
+                logger("文件[%s]发送完成" % filename, "INFO", str(self.addr))
+                print("文件[%s]发送完成" % filename)
+                self.reset()  # 重置状态
 
     def ls(self, *args):
         """

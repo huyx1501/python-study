@@ -150,12 +150,20 @@ class FtpClient(object):
                         buffer = file_size - received_size
                     #  接收并保存数据
                     _data = self.client.recv(buffer)
+                    if len(_data) == 3:
+                        try:
+                            if _data.decode("utf-8") == "400":
+                                print("文件接收失败")
+                                return
+                        except UnicodeDecodeError:
+                            pass
                     received_size += len(_data)
                     f.write(_data)
                     if not position:  # 非断点续传时每次接收都计算md5值，避免重复打开文件
                         m.update(_data)
                     percent = float(received_size / file_size)
                     print("\r" + "[下载进度]: %s %.2f%%" % ("|" * int(percent * 50), percent * 100), end="")  # 打印进度条
+                    self.client.send("ACK".encode("utf-8"))  # 回复应答数据，准备下次接收
                 f.flush()
             md5sum_client = self.md5sum(temp_file) if position else m.hexdigest()  # 计算md5，如果是断点续传则需要等接收完后重新计算
             md5sum_server = self.client.recv(1024).decode("utf-8")  # 接收服务器端源文件md5值
