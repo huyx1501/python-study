@@ -54,6 +54,7 @@ class Connection(object):
         self.state["cmd"] = "cmd"
         self.state["cmd_state"] = None
         self.state["cmd_date"] = None
+        self.state["opened_file"] = None
         self.state["filepath"] = ""
         self.state["temp_path"] = ""
         self.state["file_size"] = 0
@@ -177,21 +178,23 @@ class Connection(object):
             file_size = self.state["file_size"]
             received_size = self.state["received_size"]
             temp_path = self.state["temp_path"]
+            if not self.state["opened_file"]:
+                self.state["opened_file"] = open(temp_path, "ab")  # 如果文件存在则追加，否则新建
             if file_size > received_size:
-                with open(temp_path, "ab") as f:  # 如果文件存在则追加，否则新建
-                    if file_size - received_size > 1024:
-                        buffer_size = 1024
-                    else:
-                        buffer_size = file_size - received_size
-                    # 开始接收数据
-                    _data = self.conn.recv(buffer_size)
-                    self.state["received_size"] += len(_data)
-                    f.write(_data)
-                    if not self.state["break"]:
-                        self.state["md5"].update(_data)
-                    f.flush()
-                    self.state["cmd_state"] = "received"
+                if file_size - received_size > 1024:
+                    buffer_size = 1024
+                else:
+                    buffer_size = file_size - received_size
+                # 开始接收数据
+                _data = self.conn.recv(buffer_size)
+                self.state["received_size"] += len(_data)
+                self.state["opened_file"].write(_data)
+                if not self.state["break"]:
+                    self.state["md5"].update(_data)
+                self.state["opened_file"].flush()
+                self.state["cmd_state"] = "received"
             else:
+                self.state["opened_file"].close()
                 # 计算md5，如果是断点续传则需要等接收完后重新计算
                 md5sum_server = self.md5sum(self.state["temp_path"]) if self.state["break"] else self.state["md5"].hexdigest()
                 md5sum_client = self.conn.recv(1024).decode("utf-8")  # 接收客户端源文件md5值
@@ -391,7 +394,8 @@ class Connection(object):
             logger("ERROR: 404 - 目标不存在：[%s]" % rm_path, "ERROR", str(self.addr))
             self.conn.send("ERROR: 404 - 目标不存在".encode("utf-8"))
 
-    def save(self):
+    @staticmethod
+    def save():
         """
         保存配置信息
         :return: None
