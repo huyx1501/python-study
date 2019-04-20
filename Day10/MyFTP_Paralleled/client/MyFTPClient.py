@@ -83,12 +83,15 @@ class FtpClient(object):
         else:
             return True
 
-    def put(self, file):
+    def put(self, file=None):
         """
         上传文件接口
         :param file: 要上传的文件在本地的路径
         :return: None
         """
+        if not file:
+            print("请指定要上传的文件")
+            return
         filename = os.path.basename(file)  # 获取文件名
         if os.path.isfile(file):
             file_size = os.stat(file).st_size  # 获取文件大小
@@ -121,7 +124,7 @@ class FtpClient(object):
         else:
             print("无效的文件")
 
-    def get(self, file):
+    def get(self, file=None):
         """
         下在服务器上的文件到本地
         :param file: 要下载的文件路径和文件名，如果不指定路径则默认当前目录
