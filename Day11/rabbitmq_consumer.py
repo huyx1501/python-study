@@ -5,6 +5,11 @@
 import pika
 import time
 
+"""
+如果RabbitMQ服务器需要验证，需要指定用户密码
+credential = pika.PlainCredentials("user", "password")
+connection = pika.BlockingConnection(pika.ConnectionParameters(host="192.168.80.10", credentials=credential))
+"""
 connection = pika.BlockingConnection(pika.ConnectionParameters(host="192.168.80.10"))
 channel = connection.channel()
 channel.queue_declare(queue="hello", durable=True)  # durable参数声明队列为持久化队列
