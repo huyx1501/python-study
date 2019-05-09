@@ -40,4 +40,4 @@ README.md(本文档）
 2. 启动程序
 
 ### 流程图
-![image](https://github.com/huyx1501/python-study/blob/dev/Day10/MyFTP_Paralleled/%E5%8D%95%E7%BA%BF%E7%A8%8B%E5%A4%9A%E5%B9%B6%E5%8F%91FTP%E7%BB%93%E6%9E%84%E5%9B%BE.jpg)
+![image](https://github.com/huyx1501/python-study/blob/master/Day10/MyFTP_Paralleled/%E5%8D%95%E7%BA%BF%E7%A8%8B%E5%A4%9A%E5%B9%B6%E5%8F%91FTP%E7%BB%93%E6%9E%84%E5%9B%BE.jpg)

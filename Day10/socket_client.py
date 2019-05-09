@@ -11,3 +11,5 @@ while True:
     client.send(data.encode())
     recv = client.recv(1024).decode()
     print(recv)
+    recv = client.recv(1024).decode()
+    print(recv)
