@@ -36,7 +36,6 @@ class RpcServer(object):
                     self.connection = pika.BlockingConnection(
                         pika.ConnectionParameters(host=r_host, port=r_port, socket_timeout=5))
                 self.channel = self.connection.channel()
-                self.channel.exchange_declare(exchange="reply", exchange_type="direct")
                 self.channel.queue_declare(queue=self.listen)
                 self.channel.basic_consume(queue=self.listen, on_message_callback=self.get_request, auto_ack=False)
             else:
