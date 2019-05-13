@@ -12,6 +12,7 @@ class RpcClient(object):
     def __init__(self):
         self.connection = None
         self.channel = None
+        self.task_num = 0
         self.tasks = {}
         self.connect()  # 建立RabbitMQ连接
 
@@ -74,6 +75,8 @@ class RpcClient(object):
                 else:
                     print("无效ID[%s]" % task_id)
                     return
+        elif method == "list":
+            self.get_list()
         else:
             self.show_help()
 
@@ -90,7 +93,8 @@ class RpcClient(object):
             if self.check_ip(h):  # 检查目标地址是否是IPv4地址
                 print("running cmd [%s] on host %s" % (cmd, str(h)))
                 self.channel.queue_declare(queue=h)  # 发送消息的队列
-                task_id = len(self.tasks)+1
+                self.task_num += 1
+                task_id = self.task_num
                 self.tasks[task_id] = {
                     "host": h,
                     "uuid": str(uuid.uuid4()),
@@ -113,6 +117,7 @@ class RpcClient(object):
             self.connection.process_data_events()
             if self.tasks[task_id]["response"]:
                 print(self.tasks[task_id]["response"])
+                self.tasks.pop(task_id)
             else:
                 print("任务处理中，请稍后重试")
         else:
@@ -133,6 +138,15 @@ class RpcClient(object):
                 self.tasks[task_id]["response"] = body.decode("utf-8")
                 ch.basic_ack(delivery_tag=method.delivery_tag)
 
+    def get_list(self):
+        if len(self.tasks) == 0:
+            print("没有已提交的任务")
+        else:
+            self.connection.process_data_events()
+            for task_id in self.tasks:
+                status = "已完成" if self.tasks[task_id]["response"] else "处理中"
+                print("任务 id:[%s]  状态:[%s]" % (task_id, status))
+
     @staticmethod
     def show_help():
         """
@@ -140,8 +154,9 @@ class RpcClient(object):
         :return: None
         """
         print('''用法: 
-    >> exec -m COMMAND -h HOST[:HOST]
-    >> query TASK_ID [TASK_ID]
+    >> exec -m COMMAND -h HOST[:HOST]  # 执行任务
+    >> query TASK_ID [TASK_ID]  # 查询指定任务
+    >> list  # 显示任务列表及状态
 示例:
     >> exec -m "df -h" -h "192.168.80.10:192.168.80.20"
     >> query 100 101''')
