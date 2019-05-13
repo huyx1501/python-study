@@ -8,10 +8,10 @@ import os
 
 
 class RpcServer(object):
-    def __init__(self, listen_addr):
+    def __init__(self):
         self.connection = None
         self.channel = None
-        self.listen = listen_addr
+        self.listen = ""
         self.connect()
 
     def connect(self):
@@ -50,7 +50,9 @@ class RpcServer(object):
         message = body.decode("utf-8")
         print("开始处理消息 ", message)
         result = self.run_cmd(message)
-        print(result)
+        # print(result)
+        if not result:
+            result = "Command ERROR"
         # 发送消息到客户端指定的返回队列
         ch.basic_publish(exchange="",
                          routing_key=properties.reply_to,
@@ -68,7 +70,7 @@ class RpcServer(object):
 
 
 if __name__ == "__main__":
-    ssh_server = RpcServer("192.168.80.11")
+    ssh_server = RpcServer()
     print("开始监听...")
     ssh_server.channel.start_consuming()
     ssh_server.connection.close()

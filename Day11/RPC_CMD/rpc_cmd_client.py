@@ -6,7 +6,6 @@ import pika
 import configparser
 import uuid
 import re
-import threading
 
 
 class RpcClient(object):
@@ -17,7 +16,8 @@ class RpcClient(object):
         self.connect()  # 建立RabbitMQ连接
 
     def __del__(self):
-        self.connection.close()
+        if self.connection and self.connection.is_closed:
+            self.connection.close()
 
     def connect(self):
         """
@@ -94,26 +94,23 @@ class RpcClient(object):
                 self.tasks[task_id] = {
                     "host": h,
                     "uuid": str(uuid.uuid4()),
-                    "response": "",
-                    "reply_queue": None,
-                    "reply_thread": None
+                    "response": ""
                 }
-                tmp_queue = self.channel.queue_declare(queue="", exclusive=True)
-                self.tasks[task_id]["reply_queue"] = tmp_queue.method.queue  # 获取临时队列的名称
-                self.channel.basic_consume(queue=self.tasks[task_id]["reply_queue"],
+                self.channel.queue_declare(queue="reply")
+                self.channel.basic_consume(queue="reply",
                                            on_message_callback=self.process_result,
                                            auto_ack=False)
                 self.channel.basic_publish(exchange="", routing_key=h, properties=pika.BasicProperties(
-                                            reply_to=self.tasks[task_id]["reply_queue"],
+                                            reply_to="reply",
                                             correlation_id=self.tasks[task_id]["uuid"]), body=str(cmd))
                 print("任务 id:[%s] 创建成功" % task_id)
             else:
                 continue
-        threading.Thread(target=self.channel.start_consuming).start()
 
     def get_result(self, task_id):
         task = self.tasks.get(task_id)
         if task:
+            self.connection.process_data_events()
             if self.tasks[task_id]["response"]:
                 print(self.tasks[task_id]["response"])
             else:
