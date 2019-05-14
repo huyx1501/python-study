@@ -5,6 +5,7 @@
 import pika
 import configparser
 import os
+from pika import exceptions
 
 
 class RpcServer(object):
@@ -60,16 +61,16 @@ class RpcServer(object):
         ch.basic_ack(delivery_tag=method.delivery_tag)
         print("消息处理完成 ", message)
 
-    def start(self):
-        self.channel.start()
-
     @staticmethod
     def run_cmd(cmd):
         return os.popen(cmd).read()
 
 
 if __name__ == "__main__":
-    ssh_server = RpcServer()
-    print("开始监听...")
-    ssh_server.channel.start_consuming()
-    ssh_server.connection.close()
+    try:
+        ssh_server = RpcServer()
+        print("开始监听...")
+        ssh_server.channel.start_consuming()
+        ssh_server.connection.close()
+    except exceptions.StreamLostError:
+        print("RabbitMQ连接中断...")
