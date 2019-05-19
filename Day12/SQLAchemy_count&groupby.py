@@ -7,7 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # 创建连接引擎
-engine = create_engine("mysql+pymysql://root:12345678@192.168.2.114/python_test", encoding="utf-8", echo=False)
+engine = create_engine("mysql+pymysql://root:12345678@192.168.2.114/python_test?charset=utf8")
 BaseClass = declarative_base()  # 创建基类
 
 
