@@ -31,7 +31,8 @@ class Student(BaseClass):
     living_address_code = Column(Integer, ForeignKey(City.id))
 
     home_address = relationship(City, foreign_keys=[home_address_code])  # 指定foreign_keys建立联系
-    living_address = relationship(City, foreign_keys=[living_address_code])
+    # 不能在同一个表的多个外键关联中使用同一个backref名称
+    living_address = relationship(City, backref="student", foreign_keys=[living_address_code])
 
     def __repr__(self):
         return str({"std_id": self.std_id, "name": self.name, "sex": self.sex, "age": self.age,

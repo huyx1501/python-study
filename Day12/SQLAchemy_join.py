@@ -46,6 +46,3 @@ result = session.query(Student.name, Score.score).filter(Student.std_id == Score
 print(result)
 join_result = session.query(Student.name, Score.score).join(Score).all()  # 自动根据外键关联联合查询
 print(join_result)
-
-
-
