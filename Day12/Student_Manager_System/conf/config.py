@@ -12,5 +12,6 @@ mysql_config = {
     "User": "root",             # MySQL登陆用户名
     "Password": "12345678",     # MySQL登陆密码
     "DBName": "python_test",    # MySQL数据库名
-    "Charset": "utf8"           # 数据库字符集
+    "Charset": "utf8",          # 数据库字符集
+    "Prefix": "sm"              # 表前缀
 }
