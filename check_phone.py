@@ -45,6 +45,7 @@ class Phone(object):
         self.f_other = open("其他.txt", "w", encoding="utf-8")
         self.l_other = Lock()
         self.f_error = open("错误.txt", "w", encoding="utf-8")
+        self.l_error = Lock()
         self.thread_pool = BoundedSemaphore(int(pool))
         self.details = details
 
@@ -109,7 +110,11 @@ class Phone(object):
             except Exception:
                 print("Failed! Please wait!")
                 count += 1
-                time.sleep(15)
+                time.sleep(10)
+        else:
+            self.l_error.acquire()
+            self.f_error.write("%s, 处理超时\n" % number)
+            self.l_error.release()
 
     @staticmethod
     def check(phone_num):
@@ -131,10 +136,14 @@ class Phone(object):
         for search_item in self.f_source:
             # print("Processing %s" % search_item)
             if self.check(search_item) == 1:
-                self.f_error.write("%s, 长度错误" % search_item)
+                self.l_error.acquire()
+                self.f_error.write("%s, 长度错误\n" % search_item)
+                self.l_error.release()
                 continue
             elif self.check(search_item) == 2:
-                self.f_error.write("%s, 格式错误" % search_item)
+                self.l_error.acquire()
+                self.f_error.write("%s, 格式错误\n" % search_item)
+                self.l_error.release()
                 continue
             else:
                 t = threading.Thread(target=self.query, args=(search_item,))
