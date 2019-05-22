@@ -14,21 +14,6 @@ import sys
 import threading
 from threading import Lock, BoundedSemaphore
 
-args = sys.argv
-if len(args) < 3:
-    print("""参数错误：
-用法：
-    python check_phone.py 线程数 源文件 [加-v输出手机号详细信息]
-例：
-    python check_phone.py 10 C:\phone.txt
-""")
-    exit(1)
-
-# 防止反爬虫，构造合理的HTTP请求头
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36"
-}
-
 
 class Phone(object):
     def __init__(self, pool, source, details=False):
@@ -46,11 +31,12 @@ class Phone(object):
         self.l_other = Lock()
         self.f_error = open("错误.txt", "w", encoding="utf-8")
         self.l_error = Lock()
+        self.processed = 0
+        self.l_processed = Lock()
         self.thread_pool = BoundedSemaphore(int(pool))
         self.details = details
 
     def query(self, number):
-        self.thread_pool.acquire()
         count = 0
         while count < 3:
             try:
@@ -78,37 +64,40 @@ class Phone(object):
                 if "电信" in type1:
                     self.l_dianxin.acquire()
                     if self.details:
-                        self.f_dianxin.write("{},{},{},{}".format(province, city, type1, number))
+                        self.f_dianxin.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
                     else:
                         self.f_dianxin.write(number)
                     self.l_dianxin.release()
                 elif "联通" in type1:
                     self.l_liantong.acquire()
                     if self.details:
-                        self.f_liantong.write("{},{},{},{}".format(province, city, type1, number))
+                        self.f_liantong.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
                     else:
                         self.f_liantong.write(number)
                     self.l_liantong.release()
                 elif "移动" in type1:
                     self.l_yidong.acquire()
                     if self.details:
-                        self.f_yidong.write("{},{},{},{}".format(province, city, type1, number))
+                        self.f_yidong.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
                     else:
                         self.f_yidong.write(number)
                     self.l_yidong.release()
                 else:
                     self.l_other.acquire()
                     if self.details:
-                        self.f_other.write("{},{},{},{}".format(province, city, type1, number))
+                        self.f_other.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
                     else:
                         self.f_other.write(number)
                     self.l_other.release()
-                # print("search result:", "{},{},{},{}".format(province, city, type1, number))
+                # print("search result:", "{}\t{}\t{}\t{}".format(number, province, city, type1))
                 html.close()
                 self.thread_pool.release()
+                self.l_processed.acquire()
+                self.processed += 1
+                self.l_processed.release()
                 break
             except Exception:
-                print("Failed! Please wait!")
+                print("处理异常, 10秒后重试...")
                 count += 1
                 time.sleep(10)
         else:
@@ -118,23 +107,20 @@ class Phone(object):
 
     @staticmethod
     def check(phone_num):
-        if len(phone_num.strip()) != 11:
+        if len(phone_num) != 11:
             return 1
-        if str(phone_num)[:2] not in ("13", "15", "16", "17", "18", "19"):
+        if str(phone_num)[:2] not in ("13", "14", "15", "16", "17", "18", "19"):
             return 2
         return 0
 
     def main(self):
         begin_time = time.time()
-        # 先建立一个存储爬虫结果的文件
-        # 进入工作目录
-        os.chdir("//home//bob//mobile")
-
-        # 设置超时时间
-        socket.setdefaulttimeout(30)
-
+        print("开始处理, 请稍候...")
         for search_item in self.f_source:
             # print("Processing %s" % search_item)
+            search_item = search_item.strip()
+            if search_item == "":
+                continue
             if self.check(search_item) == 1:
                 self.l_error.acquire()
                 self.f_error.write("%s, 长度错误\n" % search_item)
@@ -147,11 +133,13 @@ class Phone(object):
                 continue
             else:
                 t = threading.Thread(target=self.query, args=(search_item,))
-                # self.thread_list.append(t)
+                self.thread_pool.acquire()
                 t.start()
+                # print("处理线程数：", threading.active_count())
+                if self.processed > 0 and self.processed % 100 == 0:
+                    print("已处理 %s 条, 累计用时 %s 秒" % (self.processed, time.time() - begin_time))
         else:
             while threading.active_count() != 1:
-                print("等待处理数：", threading.active_count())
                 time.sleep(1)
             else:
                 print("处理完成, 累计用时 %s 秒" % (time.time() - begin_time))
@@ -169,10 +157,29 @@ class Phone(object):
             pass
 
 
-try:
-    if args[3] == "-v":
-        p1 = Phone(args[1], args[2], True)
+if __name__ == "__main__":
+    args = sys.argv
+    if len(args) < 3:
+        print("""参数错误：
+    用法：
+        python check_phone.py 线程数 源文件 [加-v输出手机号详细信息]
+    例：
+        python check_phone.py 10 C:\phone.txt
+    """)
+        exit(1)
+
+    # 防止反爬虫，构造合理的HTTP请求头
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36"
+    }
+
+    # 设置超时时间
+    socket.setdefaulttimeout(15)
+
+    try:
+        if args[3] == "-v":
+            p1 = Phone(args[1], args[2], True)
+            p1.main()
+    except IndexError:
+        p1 = Phone(args[1], args[2])
         p1.main()
-except IndexError:
-    p1 = Phone(args[1], args[2])
-    p1.main()
