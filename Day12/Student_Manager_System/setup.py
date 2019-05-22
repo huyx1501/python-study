@@ -214,13 +214,16 @@ class Score(BaseClass):
     """
     __tablename__ = "%s_score" % mysql_config["Prefix"]
     id = Column(Integer, primary_key=True, autoincrement=True)
-    student_id = Column(Integer, nullable=False, comment="学生ID", index=True)
+    student_id = Column(Integer, ForeignKey(Student.id), nullable=False, comment="学生ID", index=True)
     grade = Column(Integer, nullable=False, comment="班级ID", index=True)
     create_time = Column(DateTime, comment="提交时间", index=True)
     score = Column(SmallInteger, comment="分数")
     score_time = Column(DateTime, comment="评分时间")
-    teacher_id = Column(Integer, comment="评分教师")
+    teacher_id = Column(Integer, ForeignKey(Teacher.id), comment="评分教师")
     remark = Column(String(1024), comment="评语")
+    # 建立与其他表的关系，方便查找
+    students = relationship(Student, backref="record")
+    teachers = relationship(Teacher, backref="record")
 
     def __repr__(self):
         return str({"id": self.id, "student": self.student_id, "grade": self.grade, "create_time": self.create_time,

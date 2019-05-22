@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 # Author: Bob
 
-from sqlalchemy import create_engine, Column, Integer, String, SmallInteger, DateTime
+from sqlalchemy import create_engine, ForeignKey, Column, Integer, String, SmallInteger, DateTime
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 from .config import *
 
 # 创建连接引擎
