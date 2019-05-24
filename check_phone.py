@@ -5,7 +5,6 @@
 采用多线程的方式从ip138网站查询手机号运营商和归属地信息
 """
 import urllib.request
-import requests
 from bs4 import BeautifulSoup
 import urllib.parse
 import time
@@ -14,6 +13,37 @@ import os
 import sys
 import threading
 from threading import Lock, BoundedSemaphore
+from sqlalchemy import create_engine, Column, Integer, String, SmallInteger, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+import datetime
+
+engine = create_engine("mysql+pymysql://phone:12345678@192.168.2.21/phone?charset=utf8")
+BaseClass = declarative_base()  # 创建基类
+
+
+class PhoneCheck(BaseClass):
+    __tablename__ = "phone_check"  # 表名
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    phone_num = Column(String(50), index=True, unique=True)
+    type_string = Column(String(255), comment="运营商")
+    pro_type = Column(SmallInteger, comment="运营商类型，1-电信，2-联通，3-移动，4-其他")
+    province = Column(String(255))
+    city = Column(String(255))
+    update_time = Column(String(255))
+
+    def __repr__(self):
+        return str({"id": self.id, "phone_num": self.phone_num, "type_string": self.type_string,
+                    "pro_type": self.pro_type, "province": self.province, "city": self.city,
+                    "update_time": self.update_time})
+
+try:
+    BaseClass.metadata.create_all(engine)
+except Exception:
+    pass
+SessionClass = sessionmaker(bind=engine)
+session = SessionClass()
+session_lock =Lock()
 
 
 class Phone(object):
@@ -37,7 +67,7 @@ class Phone(object):
         self.thread_pool = BoundedSemaphore(int(pool))
         self.details = details
 
-    def query(self, number):
+    def query(self, number, data=None):
         try:
             url = 'http://www.ip138.com:8080/search.asp?mobile=' + urllib.parse.quote(number) + '&action=mobile'
             # print(url)
@@ -60,40 +90,33 @@ class Phone(object):
                 else:
                     city = addr.split()[1]
             type1 = res.next_sibling.next_sibling.next_sibling.next_sibling.find('td', class_="tdc2").get_text()
-            if "电信" in type1:
-                self.l_dianxin.acquire()
-                if self.details:
-                    self.f_dianxin.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
-                else:
-                    self.f_dianxin.write(number)
-                self.l_dianxin.release()
-            elif "联通" in type1:
-                self.l_liantong.acquire()
-                if self.details:
-                    self.f_liantong.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
-                else:
-                    self.f_liantong.write(number)
-                self.l_liantong.release()
-            elif "移动" in type1:
-                self.l_yidong.acquire()
-                if self.details:
-                    self.f_yidong.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
-                else:
-                    self.f_yidong.write(number)
-                self.l_yidong.release()
+            if not data:
+                data = PhoneCheck(phone_num=number, province=province, city=city, type_string=type1, pro_type=1,
+                                  update_time=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             else:
-                self.l_other.acquire()
-                if self.details:
-                    self.f_other.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
-                else:
-                    self.f_other.write(number)
-                self.l_other.release()
+                data.phone_num = number
+                data.province = province
+                data.city = city
+                data.type_string = type1
+                data.update_time = datetime.datetime.now()
+            if "电信" in type1:
+                data.pro_type = 1
+            elif "联通" in type1:
+                data.pro_type = 2
+            elif "移动" in type1:
+                data.pro_type = 3
+            else:
+                data.pro_type = 4
             # print("search result:", "{}\t{}\t{}\t{}".format(number, province, city, type1))
+            self.save_data(data.pro_type, number, province, city, type1)  # 保存数据到文件
+            session_lock.acquire()
+            session.add(data)
+            session_lock.release()
             html.close()
             self.l_processed.acquire()
             self.processed += 1
             self.l_processed.release()
-            self.thread_pool.release()
+            # self.thread_pool.release()
         except Exception as e:
             print("处理异常...", e)
             self.l_error.acquire()
@@ -103,7 +126,7 @@ class Phone(object):
             self.processed += 1
             self.l_processed.release()
             time.sleep(10)
-            self.thread_pool.release()
+            # self.thread_pool.release()
             try:
                 html.close()
             except Exception:
@@ -116,6 +139,45 @@ class Phone(object):
         if str(phone_num)[:2] not in ("13", "14", "15", "16", "17", "18", "19"):
             return 2
         return 0
+
+    def save_data(self, _type, number, province, city, type1):
+        """
+        写入数据到文件
+        :param _type: 运营商类型
+        :param number: 手机号
+        :param province: 省
+        :param city: 市
+        :param type1: 卡类型
+        :return: None
+        """
+        if _type == 1:
+            self.l_dianxin.acquire()
+            if self.details:
+                self.f_dianxin.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
+            else:
+                self.f_dianxin.write(number)
+            self.l_dianxin.release()
+        elif _type == 2:
+            self.l_liantong.acquire()
+            if self.details:
+                self.f_liantong.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
+            else:
+                self.f_liantong.write(number)
+            self.l_liantong.release()
+        elif _type == 3:
+            self.l_yidong.acquire()
+            if self.details:
+                self.f_yidong.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
+            else:
+                self.f_yidong.write(number)
+            self.l_yidong.release()
+        else:
+            self.l_other.acquire()
+            if self.details:
+                self.f_other.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
+            else:
+                self.f_other.write(number)
+            self.l_other.release()
 
     def main(self):
         begin_time = time.time()
@@ -136,12 +198,29 @@ class Phone(object):
                 self.l_error.release()
                 continue
             else:
-                t = threading.Thread(target=self.query, args=(search_item,))
-                self.thread_pool.acquire()
-                t.start()
+                session_lock.acquire()
+                result = session.query(PhoneCheck).filter(PhoneCheck.phone_num == int(search_item)).first()
+                session_lock.release()
+                if not result:
+                    # t = threading.Thread(target=self.query, args=(search_item,))
+                    self.query(search_item)
+                else:
+                    update_time = datetime.datetime.strptime(result.update_time, "%Y-%m-%d %H:%M:%S")
+                    expire_time = update_time + datetime.timedelta(30)
+                    if expire_time < datetime.datetime.now():  # 更新时间超过30天
+                        # t = threading.Thread(target=self.query, args=(search_item, result))
+                        self.query(search_item, result)
+                    else:
+                        self.save_data(result.pro_type, result.phone_num, result.province, result.city, result.type_string)  # 保存数据到文件
+
+                # self.thread_pool.acquire()
+                # t.start()
                 # print("处理线程数：", threading.active_count())
                 if self.processed > 0 and self.processed % 100 == 0:
                     print("已处理 %s 条, 累计用时 %s 秒" % (self.processed, time.time() - begin_time))
+                    session_lock.acquire()
+                    session.commit()
+                    session_lock.release()
         else:
             while threading.active_count() != 1:
                 time.sleep(1)
@@ -180,12 +259,12 @@ if __name__ == "__main__":
     # 设置超时时间
     socket.setdefaulttimeout(15)
 
-    # try:
-    #     if args[3] == "-v":
-    #         p1 = Phone(args[1], args[2], True)
-    #         p1.main()
-    # except IndexError:
-    #     p1 = Phone(args[1], args[2])
-    #     p1.main()
-    p1 = Phone(10, "/home/bob/Desktop/mobile/phone.txt", True)
-    p1.main()
+    try:
+        if args[3] == "-v":
+            p1 = Phone(args[1], args[2], True)
+            p1.main()
+    except IndexError:
+        p1 = Phone(args[1], args[2])
+        p1.main()
+    # p1 = Phone(10, "/home/bob/Desktop/mobile/phone.txt", True)
+    # p1.main()
