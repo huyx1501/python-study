@@ -66,6 +66,7 @@ class Phone(object):
         self.l_processed = Lock()
         self.thread_pool = BoundedSemaphore(int(pool))
         self.details = details
+        self.begin_time = time.time()
 
     def query(self, number, data=None):
         try:
@@ -154,35 +155,40 @@ class Phone(object):
             if self.details:
                 self.f_dianxin.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
             else:
-                self.f_dianxin.write(number)
+                self.f_dianxin.write(number+"\n")
             self.l_dianxin.release()
         elif _type == 2:
             self.l_liantong.acquire()
             if self.details:
                 self.f_liantong.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
             else:
-                self.f_liantong.write(number)
+                self.f_liantong.write(number+"\n")
             self.l_liantong.release()
         elif _type == 3:
             self.l_yidong.acquire()
             if self.details:
                 self.f_yidong.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
             else:
-                self.f_yidong.write(number)
+                self.f_yidong.write(number+"\n")
             self.l_yidong.release()
         else:
             self.l_other.acquire()
             if self.details:
                 self.f_other.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
             else:
-                self.f_other.write(number)
+                self.f_other.write(number+"\n")
             self.l_other.release()
         self.l_processed.acquire()
         self.processed += 1
         self.l_processed.release()
 
+        if self.processed > 0 and self.processed % 100 == 0:
+            print("已处理 %s 条, 累计用时 %s 秒" % (self.processed, time.time() - self.begin_time))
+            session_lock.acquire()
+            session.commit()
+            session_lock.release()
+
     def main(self):
-        begin_time = time.time()
         print("开始处理, 请稍候...")
         for search_item in self.f_source:
             # print("Processing %s" % search_item)
@@ -220,11 +226,6 @@ class Phone(object):
                 self.thread_pool.acquire()
                 t.start()
                 # print("处理线程数：", threading.active_count())
-                if self.processed > 0 and self.processed % 100 == 0:
-                    print("已处理 %s 条, 累计用时 %s 秒" % (self.processed, time.time() - begin_time))
-                    session_lock.acquire()
-                    session.commit()
-                    session_lock.release()
         else:
             while threading.active_count() != 1:
                 time.sleep(1)
