@@ -5,6 +5,7 @@
 采用多线程的方式从ip138网站查询手机号运营商和归属地信息
 """
 import urllib.request
+import requests
 from bs4 import BeautifulSoup
 import urllib.parse
 import time
@@ -37,73 +38,76 @@ class Phone(object):
         self.details = details
 
     def query(self, number):
-        count = 0
-        while count < 3:
-            try:
-                url = 'http://www.ip138.com:8080/search.asp?mobile=' + urllib.parse.quote(number) + '&action=mobile'
-                # print(url)
-                # 用来抓取网页的html源代码
-                html = urllib.request.urlopen(url)
-                html.encoding = "gb2312"
-                # print(html.read().decode("gb2312"))
+        try:
+            url = 'http://www.ip138.com:8080/search.asp?mobile=' + urllib.parse.quote(number) + '&action=mobile'
+            # print(url)
+            # 用来抓取网页的html源代码
+            html = urllib.request.urlopen(url)
+            html.encoding = "gb2312"
+            # print(html.read().decode("gb2312"))
 
-                # 用来代替正则式取源码中相应标签中的内容
-                soup = BeautifulSoup(html, "lxml")
-                res = soup.find('tr', bgcolor="#EFF1F3")
-                addr = res.next_sibling.next_sibling.find('td', class_="tdc2").get_text().strip()  # 归属地
-                if len(addr) == 0:
-                    province = ''
-                    city = ''
+            # 用来代替正则式取源码中相应标签中的内容
+            soup = BeautifulSoup(html, "lxml")
+            res = soup.find('tr', bgcolor="#EFF1F3")
+            addr = res.next_sibling.next_sibling.find('td', class_="tdc2").get_text().strip()  # 归属地
+            if len(addr) == 0:
+                province = ''
+                city = ''
+            else:
+                province = addr.split()[0]
+                if len(addr.split()) == 1:
+                    city = addr.split()[0] + '市'
                 else:
-                    province = addr.split()[0]
-                    if len(addr.split()) == 1:
-                        city = addr.split()[0] + '市'
-                    else:
-                        city = addr.split()[1]
-                type1 = res.next_sibling.next_sibling.next_sibling.next_sibling.find('td', class_="tdc2").get_text()
-                if "电信" in type1:
-                    self.l_dianxin.acquire()
-                    if self.details:
-                        self.f_dianxin.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
-                    else:
-                        self.f_dianxin.write(number)
-                    self.l_dianxin.release()
-                elif "联通" in type1:
-                    self.l_liantong.acquire()
-                    if self.details:
-                        self.f_liantong.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
-                    else:
-                        self.f_liantong.write(number)
-                    self.l_liantong.release()
-                elif "移动" in type1:
-                    self.l_yidong.acquire()
-                    if self.details:
-                        self.f_yidong.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
-                    else:
-                        self.f_yidong.write(number)
-                    self.l_yidong.release()
+                    city = addr.split()[1]
+            type1 = res.next_sibling.next_sibling.next_sibling.next_sibling.find('td', class_="tdc2").get_text()
+            if "电信" in type1:
+                self.l_dianxin.acquire()
+                if self.details:
+                    self.f_dianxin.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
                 else:
-                    self.l_other.acquire()
-                    if self.details:
-                        self.f_other.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
-                    else:
-                        self.f_other.write(number)
-                    self.l_other.release()
-                # print("search result:", "{}\t{}\t{}\t{}".format(number, province, city, type1))
-                html.close()
-                self.thread_pool.release()
-                self.l_processed.acquire()
-                self.processed += 1
-                self.l_processed.release()
-                break
-            except Exception:
-                print("处理异常, 10秒后重试...")
-                count += 1
-                time.sleep(10)
-        else:
+                    self.f_dianxin.write(number)
+                self.l_dianxin.release()
+            elif "联通" in type1:
+                self.l_liantong.acquire()
+                if self.details:
+                    self.f_liantong.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
+                else:
+                    self.f_liantong.write(number)
+                self.l_liantong.release()
+            elif "移动" in type1:
+                self.l_yidong.acquire()
+                if self.details:
+                    self.f_yidong.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
+                else:
+                    self.f_yidong.write(number)
+                self.l_yidong.release()
+            else:
+                self.l_other.acquire()
+                if self.details:
+                    self.f_other.write("{}\t{}\t{}\t{}\n".format(number, province, city, type1))
+                else:
+                    self.f_other.write(number)
+                self.l_other.release()
+            # print("search result:", "{}\t{}\t{}\t{}".format(number, province, city, type1))
+            html.close()
+            self.l_processed.acquire()
+            self.processed += 1
+            self.l_processed.release()
+            self.thread_pool.release()
+        except Exception as e:
+            print("处理异常...", e)
             self.l_error.acquire()
             self.f_error.write("%s, 处理超时\n" % number)
             self.l_error.release()
+            self.l_processed.acquire()
+            self.processed += 1
+            self.l_processed.release()
+            time.sleep(10)
+            self.thread_pool.release()
+            try:
+                html.close()
+            except Exception:
+                pass
 
     @staticmethod
     def check(phone_num):
@@ -176,10 +180,12 @@ if __name__ == "__main__":
     # 设置超时时间
     socket.setdefaulttimeout(15)
 
-    try:
-        if args[3] == "-v":
-            p1 = Phone(args[1], args[2], True)
-            p1.main()
-    except IndexError:
-        p1 = Phone(args[1], args[2])
-        p1.main()
+    # try:
+    #     if args[3] == "-v":
+    #         p1 = Phone(args[1], args[2], True)
+    #         p1.main()
+    # except IndexError:
+    #     p1 = Phone(args[1], args[2])
+    #     p1.main()
+    p1 = Phone(10, "/home/bob/Desktop/mobile/phone.txt", True)
+    p1.main()
