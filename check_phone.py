@@ -114,9 +114,6 @@ class Phone(object):
             session.add(data)
             session_lock.release()
             html.close()
-            self.l_processed.acquire()
-            self.processed += 1
-            self.l_processed.release()
             time.sleep(0.1)
             self.thread_pool.release()
         except Exception as e:
@@ -180,6 +177,9 @@ class Phone(object):
             else:
                 self.f_other.write(number)
             self.l_other.release()
+        self.l_processed.acquire()
+        self.processed += 1
+        self.l_processed.release()
 
     def main(self):
         begin_time = time.time()
@@ -203,6 +203,7 @@ class Phone(object):
                 session_lock.acquire()
                 result = session.query(PhoneCheck).filter(PhoneCheck.phone_num == int(search_item)).first()
                 session_lock.release()
+                # 本地无结果或者结果过期，则从远程查询后保存到数据库和文件
                 if not result:
                     t = threading.Thread(target=self.query, args=(search_item,))
                     # self.query(search_item)
@@ -212,7 +213,7 @@ class Phone(object):
                         t = threading.Thread(target=self.query, args=(search_item, result))
                         # self.query(search_item, result)
                     else:
-                        # 保存数据到文件
+                        # 直接取数据库的内容保存到文件
                         self.save_data(result.pro_type, result.phone_num, result.province, result.city,
                                        result.type_string)
                         continue
