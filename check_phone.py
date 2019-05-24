@@ -30,7 +30,7 @@ class PhoneCheck(BaseClass):
     pro_type = Column(SmallInteger, comment="运营商类型，1-电信，2-联通，3-移动，4-其他")
     province = Column(String(255))
     city = Column(String(255))
-    update_time = Column(String(255))
+    update_time = Column(DateTime)
 
     def __repr__(self):
         return str({"id": self.id, "phone_num": self.phone_num, "type_string": self.type_string,
@@ -43,7 +43,7 @@ except Exception:
     pass
 SessionClass = sessionmaker(bind=engine)
 session = SessionClass()
-session_lock =Lock()
+session_lock = Lock()
 
 
 class Phone(object):
@@ -72,7 +72,8 @@ class Phone(object):
             url = 'http://www.ip138.com:8080/search.asp?mobile=' + urllib.parse.quote(number) + '&action=mobile'
             # print(url)
             # 用来抓取网页的html源代码
-            html = urllib.request.urlopen(url)
+            request = urllib.request.Request(url=url, headers=header)
+            html = urllib.request.urlopen(request)
             html.encoding = "gb2312"
             # print(html.read().decode("gb2312"))
 
@@ -92,7 +93,7 @@ class Phone(object):
             type1 = res.next_sibling.next_sibling.next_sibling.next_sibling.find('td', class_="tdc2").get_text()
             if not data:
                 data = PhoneCheck(phone_num=number, province=province, city=city, type_string=type1, pro_type=1,
-                                  update_time=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                                  update_time=datetime.datetime.now())
             else:
                 data.phone_num = number
                 data.province = province
@@ -116,9 +117,9 @@ class Phone(object):
             self.l_processed.acquire()
             self.processed += 1
             self.l_processed.release()
-            # self.thread_pool.release()
+            time.sleep(0.1)
+            self.thread_pool.release()
         except Exception as e:
-            print("处理异常...", e)
             self.l_error.acquire()
             self.f_error.write("%s, 处理超时\n" % number)
             self.l_error.release()
@@ -126,7 +127,8 @@ class Phone(object):
             self.processed += 1
             self.l_processed.release()
             time.sleep(10)
-            # self.thread_pool.release()
+            self.thread_pool.release()
+            print("[%s] 处理异常..." % threading.current_thread().name, e)
             try:
                 html.close()
             except Exception:
@@ -202,19 +204,20 @@ class Phone(object):
                 result = session.query(PhoneCheck).filter(PhoneCheck.phone_num == int(search_item)).first()
                 session_lock.release()
                 if not result:
-                    # t = threading.Thread(target=self.query, args=(search_item,))
-                    self.query(search_item)
+                    t = threading.Thread(target=self.query, args=(search_item,))
+                    # self.query(search_item)
                 else:
-                    update_time = datetime.datetime.strptime(result.update_time, "%Y-%m-%d %H:%M:%S")
-                    expire_time = update_time + datetime.timedelta(30)
+                    expire_time = result.update_time + datetime.timedelta(30)
                     if expire_time < datetime.datetime.now():  # 更新时间超过30天
-                        # t = threading.Thread(target=self.query, args=(search_item, result))
-                        self.query(search_item, result)
+                        t = threading.Thread(target=self.query, args=(search_item, result))
+                        # self.query(search_item, result)
                     else:
-                        self.save_data(result.pro_type, result.phone_num, result.province, result.city, result.type_string)  # 保存数据到文件
-
-                # self.thread_pool.acquire()
-                # t.start()
+                        # 保存数据到文件
+                        self.save_data(result.pro_type, result.phone_num, result.province, result.city,
+                                       result.type_string)
+                        continue
+                self.thread_pool.acquire()
+                t.start()
                 # print("处理线程数：", threading.active_count())
                 if self.processed > 0 and self.processed % 100 == 0:
                     print("已处理 %s 条, 累计用时 %s 秒" % (self.processed, time.time() - begin_time))
@@ -252,7 +255,7 @@ if __name__ == "__main__":
         exit(1)
 
     # 防止反爬虫，构造合理的HTTP请求头
-    headers = {
+    header = {
         "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36"
     }
 
