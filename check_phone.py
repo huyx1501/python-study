@@ -10,6 +10,7 @@ import urllib.parse
 from urllib.error import URLError
 import time
 import socket
+import os
 import sys
 import threading
 from threading import Lock, BoundedSemaphore
@@ -42,6 +43,8 @@ class Phone(BaseClass):
 class PhoneCheck(object):
     def __init__(self, pool, source, details=False):
         try:
+            basedir = os.path.dirname(source)
+            os.chdir(basedir)
             # 打开你要查询的号段文档
             self.f_source = open(source)
             self.f_dianxin = open("电信.txt", "w", encoding="utf-8")
@@ -113,7 +116,7 @@ class PhoneCheck(object):
             else:
                 data.pro_type = 4
             # print("search result:", "{}\t{}\t{}\t{}".format(number, province, city, type1))
-            self.save_data(data)  # 保存数据到文件
+            self.save_data(data)  # 保存数据
             session_lock.acquire()
             session.add(data)
             session_lock.release()
@@ -191,7 +194,7 @@ class PhoneCheck(object):
         if self.processed > 0 and self.processed % 100 == 0:
             print("已处理 %s 条, 累计用时 %s 秒" % (self.processed, time.time() - self.begin_time))
             session_lock.acquire()
-            session.commit()
+            session.commit()  # 每100条写一次数据库
             session_lock.release()
 
     def main(self):
@@ -215,10 +218,10 @@ class PhoneCheck(object):
                 if self.pool > 1:
                     t = threading.Thread(target=self.query, args=(search_item,))
                     self.thread_pool.acquire()
+                    # print("处理线程数：", threading.active_count())
                     t.start()
                 else:
                     self.query(search_item)
-                # print("处理线程数：", threading.active_count())
         else:
             while threading.active_count() != 1:
                 time.sleep(1)
@@ -271,9 +274,11 @@ if __name__ == "__main__":
     try:
         if args[3] == "-v":
             p1 = PhoneCheck(args[1], args[2], True)
-            p1.main()
+        else:
+            p1 = PhoneCheck(args[1], args[2])
     except IndexError:
         p1 = PhoneCheck(args[1], args[2])
-        p1.main()
+    p1.main()
+
     # p1 = PhoneCheck(5, "/home/bob/Desktop/mobile/phone.txt")
     # p1.main()

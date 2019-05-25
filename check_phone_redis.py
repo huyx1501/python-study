@@ -10,6 +10,7 @@ import urllib.parse
 from urllib.error import URLError
 import time
 import socket
+import os
 import sys
 import threading
 from threading import Lock, BoundedSemaphore
@@ -36,6 +37,8 @@ class Phone(object):
 class PhoneCheck(object):
     def __init__(self, pool, source, details=False):
         try:
+            basedir = os.path.dirname(source)
+            os.chdir(basedir)
             # 打开你要查询的号段文档
             self.f_source = open(source)
             self.f_dianxin = open("电信.txt", "w", encoding="utf-8")
@@ -249,10 +252,11 @@ if __name__ == "__main__":
     try:
         if args[3] == "-v":
             p1 = PhoneCheck(args[1], args[2], True)
-            p1.main()
+        else:
+            p1 = PhoneCheck(args[1], args[2])
     except IndexError:
         p1 = PhoneCheck(args[1], args[2])
-        p1.main()
+    p1.main()
 
     # p1 = PhoneCheck(5, "/home/bob/Desktop/mobile/phone.txt")
     # p1.main()
