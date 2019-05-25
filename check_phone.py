@@ -48,20 +48,21 @@ session_lock = Lock()
 
 class Phone(object):
     def __init__(self, pool, source, details=False):
-        # 打开你要查询的号段文档
-        basedir = os.path.dirname(source)
-        os.chdir(basedir)
-        self.f_source = open(r"phone.txt")
-        self.f_dianxin = open("电信.txt", "w", encoding="utf-8")
-        self.l_dianxin = Lock()
-        self.f_yidong = open("移动.txt", "w", encoding="utf-8")
-        self.l_yidong = Lock()
-        self.f_liantong = open("联通.txt", "w", encoding="utf-8")
-        self.l_liantong = Lock()
-        self.f_other = open("其他.txt", "w", encoding="utf-8")
-        self.l_other = Lock()
-        self.f_error = open("错误.txt", "w", encoding="utf-8")
-        self.l_error = Lock()
+        try:
+            # 打开你要查询的号段文档
+            self.f_source = open(source)
+            self.f_dianxin = open("电信.txt", "w", encoding="utf-8")
+            self.l_dianxin = Lock()
+            self.f_yidong = open("移动.txt", "w", encoding="utf-8")
+            self.l_yidong = Lock()
+            self.f_liantong = open("联通.txt", "w", encoding="utf-8")
+            self.l_liantong = Lock()
+            self.f_other = open("其他.txt", "w", encoding="utf-8")
+            self.l_other = Lock()
+            self.f_error = open("错误.txt", "w", encoding="utf-8")
+            self.l_error = Lock()
+        except (FileNotFoundError, IOError, PermissionError) as e:
+            exit("打开文件失败 %s" % e)
         self.processed = 0
         self.l_processed = Lock()
         self.thread_pool = BoundedSemaphore(int(pool))
