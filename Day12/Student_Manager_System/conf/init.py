@@ -6,6 +6,10 @@ from sqlalchemy import create_engine, ForeignKey, Column, Integer, String, Small
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from .config import *
+import os
+import hashlib
+import traceback
+import datetime
 
 # 创建连接引擎
 engine = create_engine("mysql+pymysql://{}:{}@{}:{}/{}?charset={}".format(

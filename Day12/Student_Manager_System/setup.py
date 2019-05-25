@@ -7,7 +7,6 @@
 并删除install.lock文件后运行此脚本
 """
 from conf import *
-import os
 
 
 class Student(BaseClass):
@@ -17,14 +16,14 @@ class Student(BaseClass):
     __tablename__ = "%s_student" % mysql_config["Prefix"]  # 表名
     id = Column(Integer, primary_key=True, autoincrement=True)  # 主键
     name = Column(String(64), nullable=False, comment="学生姓名", index=True)  # 列
-    sex = Column(String(32), nullable=False, comment="性别")
+    sex = Column(String(32), nullable=False, comment="性别 M-男性 F-女性")
     age = Column(SmallInteger, comment="年龄")
     join_time = Column(DateTime, comment="学生入学时间", index=True)
-    status = Column(SmallInteger, nullable=False, default=1, comment="学生状态 0-毕业 1-在校")
+    status = Column(SmallInteger, nullable=False, default=0, comment="学生状态 0-游离 1-在校 2-毕业")
 
     def __repr__(self):
         return str({"id": self.id, "name": self.name, "sex": self.sex, "age": self.age, "join_time": self.join_time,
-                    "status": "在校" if self.status == 1 else "毕业"})
+                    "status": self.status})
 
 
 class Teacher(BaseClass):
@@ -34,14 +33,14 @@ class Teacher(BaseClass):
     __tablename__ = "%s_teacher" % mysql_config["Prefix"]
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(64), nullable=False, comment="教师姓名", index=True)
-    sex = Column(String(32), nullable=False, comment="性别")
+    sex = Column(String(32), nullable=False, comment="性别 M-男性 F-女性")
     age = Column(SmallInteger, comment="年龄")
-    join_time = Column(DateTime, nullable=False, comment="就职时间", index=True)
-    status = Column(SmallInteger, nullable=False, default=1, comment="教师状态 0-离职 1-在职")
+    join_time = Column(DateTime, comment="就职时间", index=True)
+    status = Column(SmallInteger, nullable=False, default=1, comment="教师状态 0-在野 1-在职")
 
     def __repr__(self):
         return str({"id": self.id, "name": self.name, "sex": self.sex, "age": self.age, "join_time": self.join_time,
-                    "status": "在职" if self.status == 1 else "离职"})
+                    "status": self.status})
 
 
 class SysUser(BaseClass):
@@ -52,12 +51,12 @@ class SysUser(BaseClass):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(64), nullable=False, comment="管理员姓名")
     sex = Column(String(32), comment="性别")
-    type = Column(Integer, nullable=False, default=1, comment="管理员类型 0-系统管理员， 1-普通管理员")
+    u_type = Column(Integer, nullable=False, default=1, comment="管理员类型 0-系统管理员， 1-普通管理员")
     create_time = Column(DateTime, comment="用户创建时间")
     update_time = Column(DateTime, comment="用户信息更新时间")
 
     def __repr__(self):
-        return str({"id": self.id, "name": self.name, "sex": self.sex, "type": self.type,
+        return str({"id": self.id, "name": self.name, "sex": self.sex, "u_type": self.u_type,
                     "create_time": self.create_time, "update_time": self.update_time})
 
 
@@ -74,7 +73,7 @@ class User(BaseClass):
     create_time = Column(DateTime, comment="用户创建时间", index=True)
     update_time = Column(DateTime, comment="用户信息更新时间")
     role = Column(SmallInteger, nullable=False, comment="用户类型，0-管理员，1-学生，2-教师")
-    member_id = Column(Integer,nullable=False, comment="绑定的学生或教师或系统用户ID")
+    member_id = Column(Integer, nullable=False, comment="绑定的学生或教师或系统用户ID")
     status = Column(SmallInteger, nullable=False, default=1, comment="用户状态，0-锁定，1-正常")
 
     def __repr__(self):
@@ -150,12 +149,10 @@ class Course(BaseClass):
     __tablename__ = "%s_course" % mysql_config["Prefix"]
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False, comment="课程名")
-    create_time = Column(DateTime, comment="课程开设时间")
     status = Column(SmallInteger, nullable=False, default=1, comment="课程状态 0-无效 1-有效")
 
     def __repr__(self):
-        return str({"id": self.id, "name": self.name, "create_time": self.create_time,
-                    "status": "有效" if self.status == 1 else "无效"})
+        return str({"id": self.id, "name": self.name, "status": "有效" if self.status == 1 else "无效"})
 
 
 class Register(BaseClass):
@@ -231,12 +228,91 @@ class Score(BaseClass):
                     "remark": self.remark})
 
 
+def get_md5(data):
+    m = hashlib.md5()
+    m.update(data.encode("utf-8"))
+    return m.hexdigest()
+
+
 if __name__ == "__main__":
+    def initialize():
+        """
+        初始化数据
+        """
+        session = SessionClass()
+        # 地址
+        a1 = Province(id=1, name="北京")
+        a2 = Province(id=2, name="上海")
+        a3 = Province(id=3, name="广东")
+        c1 = City(id=1, name="北京市")
+        c2 = City(id=2, name="上海市")
+        c3 = City(id=3, name="广州")
+        c4 = City(id=4, name="深圳")
+        session.add_all([a1, a2, a3, c1, c2, c3, c4])
+
+        # 课程
+        cou1 = Course(id=1, name="Python")
+        cou2 = Course(id=2, name="PHP")
+        cou3 = Course(id=3, name="Java")
+        session.add_all([cou1, cou2, cou3])
+
+        # 学校
+        s1 = School(id=1, name="武当派", create_time=datetime.datetime.strptime("2011-05-05", "%Y-%m-%d"), address="武当山",
+                    province=2, city=2)
+        s2 = School(id=2, name="少林派", create_time=datetime.datetime.strptime("2010-06-12", "%Y-%m-%d"), address="嵩山",
+                    province=1, city=1)
+        session.add_all([s1, s2])
+
+        # 班级
+        g1 = Grade(id=1, name="Python全栈第8期", course=1, teacher=3, school=2,
+                   create_time=datetime.datetime.strptime("2017-09-21", "%Y-%m-%d"), status=0)
+        g2 = Grade(id=2, name="Java从入门到放弃", course=3, teacher=2, school=1,
+                   create_time=datetime.datetime.strptime("2018-08-20", "%Y-%m-%d"))
+        g3 = Grade(id=3, name="Python自动化第3期", course=1, teacher=3, school=1,
+                   create_time=datetime.datetime.strptime("2018-12-25", "%Y-%m-%d"))
+        session.add_all([g1, g2, g3])
+
+        # 教师
+        t1 = Teacher(id=1, name="张三丰", sex="M", age=65, status=0)
+        t2 = Teacher(id=2, name="王重阳", sex="M", age=60, status=0)
+        t3 = Teacher(id=3, name="紫霞仙子", sex="F", age=200, status=0)
+        session.add_all([t1, t2, t3])
+
+        # 学生
+        st1 = Student(id=1, name="张无忌", sex="M", age=18, status=0)
+        st2 = Student(id=2, name="黄蓉", sex="F", age=22, status=0)
+        st3 = Student(id=3, name="段誉", sex="M", age=19, status=0)
+        session.add_all([st1, st2, st3])
+
+        # 系统用户表
+        su1 = SysUser(id=1, name="伊利丹.怒风", sex="M", u_type=0, create_time=datetime.datetime.now())
+        session.add_all([su1, ])
+
+        # 用户表
+        u1 = User(id=1, username="Admin", password=get_md5("12345678"), create_time=datetime.datetime.now(), role=0,
+                  member_id=1)
+        u2 = User(id=2, username="ZhangSF", password=get_md5("123123"),
+                  create_time=datetime.datetime.strptime("2011-04-12", "%Y-%m-%d"), role=2, member_id=1)
+        u3 = User(id=3, username="WangCY", password=get_md5("123123"),
+                  create_time=datetime.datetime.strptime("2012-06-19", "%Y-%m-%d"), role=2, member_id=2)
+        u4 = User(id=4, username="ZiXia", password=get_md5("123123"),
+                  create_time=datetime.datetime.strptime("2015-03-24", "%Y-%m-%d"), role=2, member_id=3)
+        u5 = User(id=5, username="ZhangWJ", password=get_md5("456456"),
+                  create_time=datetime.datetime.strptime("2017-04-12", "%Y-%m-%d"), role=1, member_id=1)
+        u6 = User(id=6, username="HuangR", password=get_md5("456456"),
+                  create_time=datetime.datetime.strptime("2017-05-13", "%Y-%m-%d"), role=1, member_id=2)
+        u7 = User(id=7, username="DuanY", password=get_md5("456456"),
+                  create_time=datetime.datetime.strptime("2018-01-22", "%Y-%m-%d"), role=1, member_id=3)
+        session.add_all([u1, u2, u3, u4, u5, u6, u7])
+
+        session.commit()  # 插入数据
+
+
     if os.path.isfile("install.lock"):
         exit("已初始化，如需重新初始化，请删除数据库表及install.lock文件后再次运行本程序")
     else:
         BaseClass.metadata.create_all(engine)
+        initialize()
         with open("install.lock", "w", encoding="utf-8") as f:
             f.write("installed")
         print("系统初始化成功")
-

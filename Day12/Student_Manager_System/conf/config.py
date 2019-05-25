@@ -11,7 +11,7 @@ mysql_config = {
     "Port": 3306,               # MySQL服务端口
     "User": "root",             # MySQL登陆用户名
     "Password": "12345678",     # MySQL登陆密码
-    "DBName": "python_test",    # MySQL数据库名
+    "DBName": "smsdb",    # MySQL数据库名
     "Charset": "utf8",          # 数据库字符集
     "Prefix": "sm"              # 表前缀
 }
