@@ -230,7 +230,7 @@ class Phone(object):
             while threading.active_count() != 1:
                 time.sleep(1)
             else:
-                print("处理完成, 累计用时 %s 秒" % (time.time() - begin_time))
+                print("处理完成, 累计用时 %s 秒" % (time.time() - self.begin_time))
                 self.f_source.close()
 
     def __del__(self):
