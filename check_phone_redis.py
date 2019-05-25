@@ -13,30 +13,24 @@ import socket
 import sys
 import threading
 from threading import Lock, BoundedSemaphore
-from sqlalchemy import create_engine, Column, Integer, String, SmallInteger, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-import datetime
+import redis
 import traceback
 
-engine = create_engine("mysql+pymysql://phone:12345678@192.168.2.21/phone?charset=utf8")
-BaseClass = declarative_base()  # 创建基类
+redis_pool = redis.ConnectionPool(host="192.168.2.114", port=6379, decode_responses=True, db=5)  # 创建一个redis连接池
+r = redis.Redis(connection_pool=redis_pool)  # 从连接池中申请连接
 
 
-class Phone(BaseClass):
-    __tablename__ = "phone_check"  # 表名
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    phone_num = Column(String(50), index=True, unique=True)
-    type_string = Column(String(255), comment="运营商")
-    pro_type = Column(SmallInteger, comment="运营商类型，1-电信，2-联通，3-移动，4-其他")
-    province = Column(String(255))
-    city = Column(String(255))
-    update_time = Column(DateTime)
+class Phone(object):
+    def __init__(self, phone_num, province, city, type_string, pro_type=4):
+        self.phone_num = phone_num
+        self.province = province
+        self.city = city
+        self.type_string = type_string
+        self.pro_type = pro_type
 
     def __repr__(self):
-        return str({"id": self.id, "phone_num": self.phone_num, "type_string": self.type_string,
-                    "pro_type": self.pro_type, "province": self.province, "city": self.city,
-                    "update_time": self.update_time})
+        return {"phone_num": self.phone_num, "province": self.province, "city": self.city,
+                "type_string": self.type_string, "pro_type": self.pro_type}
 
 
 class PhoneCheck(object):
@@ -62,14 +56,12 @@ class PhoneCheck(object):
         self.l_cached = Lock()  # 已缓存计数器锁
         self.pool = int(pool)
         self.thread_pool = BoundedSemaphore(int(pool))
+        # self.l_redis = Lock()
         self.details = details
         self.begin_time = time.time()
 
     def query(self, number):
-        session_lock.acquire()
-        valid_time = datetime.datetime.now() + datetime.timedelta(-90)  # 有效期90天
-        data = session.query(Phone).filter(Phone.phone_num == int(number)).filter(Phone.update_time > valid_time).first()
-        session_lock.release()
+        data = r.hgetall(number)
         if data:
             # print(data)
             self.save_data(data)
@@ -102,8 +94,7 @@ class PhoneCheck(object):
                 else:
                     city = addr.split()[1]
             type1 = res.next_sibling.next_sibling.next_sibling.next_sibling.find('td', class_="tdc2").get_text()
-            data = Phone(phone_num=number, province=province, city=city, type_string=type1, pro_type=1,
-                         update_time=datetime.datetime.now())
+            data = Phone(phone_num=number, province=province, city=city, type_string=type1)
             if "电信" in type1:
                 data.pro_type = 1
             elif "联通" in type1:
@@ -113,10 +104,7 @@ class PhoneCheck(object):
             else:
                 data.pro_type = 4
             # print("search result:", "{}\t{}\t{}\t{}".format(number, province, city, type1))
-            self.save_data(data)  # 保存数据到文件
-            session_lock.acquire()
-            session.add(data)
-            session_lock.release()
+            self.save_data(data.__repr__())  # 保存数据
             html.close()
             time.sleep(0.1)
             if self.pool > 1:
@@ -151,11 +139,11 @@ class PhoneCheck(object):
         """
         写入数据到文件
         """
-        pro_type = int(data.pro_type)
-        phone_num = data.phone_num
-        province = data.province
-        city = data.city
-        type_string = data.type_string
+        pro_type = int(data["pro_type"])
+        phone_num = data["phone_num"]
+        province = data["province"]
+        city = data["city"]
+        type_string = data["type_string"]
         if pro_type == 1:
             self.l_dianxin.acquire()
             if self.details:
@@ -187,12 +175,10 @@ class PhoneCheck(object):
         self.l_processed.acquire()
         self.processed += 1
         self.l_processed.release()
-
+        r.hmset(phone_num, data)
+        r.expire(phone_num, 3600*24*90)  # 设置键90天后过期删除
         if self.processed > 0 and self.processed % 100 == 0:
             print("已处理 %s 条, 累计用时 %s 秒" % (self.processed, time.time() - self.begin_time))
-            session_lock.acquire()
-            session.commit()
-            session_lock.release()
 
     def main(self):
         print("开始处理, 请稍候...")
@@ -215,10 +201,10 @@ class PhoneCheck(object):
                 if self.pool > 1:
                     t = threading.Thread(target=self.query, args=(search_item,))
                     self.thread_pool.acquire()
+                    # print("处理线程数：", threading.active_count())
                     t.start()
                 else:
                     self.query(search_item)
-                # print("处理线程数：", threading.active_count())
         else:
             while threading.active_count() != 1:
                 time.sleep(1)
@@ -252,14 +238,6 @@ if __name__ == "__main__":
     """)
         exit(1)
 
-    try:
-        BaseClass.metadata.create_all(engine)
-    except Exception:
-        pass
-    SessionClass = sessionmaker(bind=engine)
-    session = SessionClass()
-    session_lock = Lock()
-
     # 防止反爬虫，构造合理的HTTP请求头
     header = {
         "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36"
@@ -275,5 +253,6 @@ if __name__ == "__main__":
     except IndexError:
         p1 = PhoneCheck(args[1], args[2])
         p1.main()
+
     # p1 = PhoneCheck(5, "/home/bob/Desktop/mobile/phone.txt")
     # p1.main()
