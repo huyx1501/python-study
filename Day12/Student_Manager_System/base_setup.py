@@ -51,7 +51,7 @@ class SysUser(BaseClass):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(64), nullable=False, comment="管理员姓名")
     sex = Column(String(32), comment="性别")
-    u_type = Column(Integer, nullable=False, default=1, comment="管理员类型 0-系统管理员， 1-普通管理员")
+    u_type = Column(Integer, nullable=False, default=2, comment="管理员类型 1-系统管理员， 2-普通管理员")
     create_time = Column(DateTime, comment="用户创建时间")
     update_time = Column(DateTime, comment="用户信息更新时间")
 
@@ -66,18 +66,18 @@ class User(BaseClass):
     """
     __tablename__ = "%s_user" % mysql_config["Prefix"]
     id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String(255), nullable=False, comment="登陆用户名", index=True)
+    username = Column(String(255), nullable=False, comment="登陆用户名", index=True, unique=True)
     password = Column(String(255), nullable=False, comment="用户登陆密码")
     email = Column(String(255), comment="用户邮箱")
     phone = Column(String(64), comment="用户电话号码")
     create_time = Column(DateTime, comment="用户创建时间", index=True)
     update_time = Column(DateTime, comment="用户信息更新时间")
-    role = Column(SmallInteger, nullable=False, comment="用户类型，0-管理员，1-学生，2-教师")
+    role = Column(SmallInteger, nullable=False, comment="用户类型，1-管理员，2-教师，3-学生")
     member_id = Column(Integer, nullable=False, comment="绑定的学生或教师或系统用户ID")
     status = Column(SmallInteger, nullable=False, default=1, comment="用户状态，0-锁定，1-正常")
 
     def __repr__(self):
-        return str({"id": self.id, "username": self.username, "password": "******", "email": self.email,
+        return str({"id": self.id, "username": self.username, "email": self.email,
                     "phone": self.phone, "create_time": self.create_time, "update_time": self.update_time,
                     "role": self.role, "member_id": self.member_id, "status": "正常" if self.status == 1 else "锁定"})
 
@@ -179,11 +179,11 @@ class TeacherJob(BaseClass):
     grade = Column(Integer, primary_key=True, comment="任教班级")
     begin_time = Column(DateTime, comment="开始时间")
     end_time = Column(DateTime, comment="结束时间")
-    role = Column(SmallInteger, comment="任教类型 0-班主任 1-教师")
+    role = Column(SmallInteger, comment="任教类型 1-班主任 2-教师")
 
     def __repr__(self):
         return str({"student": self.teacher_id, "grade": self.grade, "begin_time": self.begin_time,
-                    "end_time":self.end_time, "role": "教师" if self.role == 1 else "班主任"})
+                    "end_time": self.end_time, "role": "教师" if self.role == 1 else "班主任"})
 
 
 class Record(BaseClass):
@@ -226,12 +226,6 @@ class Score(BaseClass):
         return str({"id": self.id, "student": self.student_id, "grade": self.grade, "create_time": self.create_time,
                     "score": self.score, "score_time": self.score_time, "teacher": self.teacher_id,
                     "remark": self.remark})
-
-
-def get_md5(data):
-    m = hashlib.md5()
-    m.update(data.encode("utf-8"))
-    return m.hexdigest()
 
 
 if __name__ == "__main__":
@@ -285,11 +279,11 @@ if __name__ == "__main__":
         session.add_all([st1, st2, st3])
 
         # 系统用户表
-        su1 = SysUser(id=1, name="伊利丹.怒风", sex="M", u_type=0, create_time=datetime.datetime.now())
+        su1 = SysUser(id=1, name="伊利丹.怒风", sex="M", u_type=1, create_time=datetime.datetime.now())
         session.add_all([su1, ])
 
         # 用户表
-        u1 = User(id=1, username="Admin", password=get_md5("12345678"), create_time=datetime.datetime.now(), role=0,
+        u1 = User(id=1, username="Admin", password=get_md5("12345678"), create_time=datetime.datetime.now(), role=1,
                   member_id=1)
         u2 = User(id=2, username="ZhangSF", password=get_md5("123123"),
                   create_time=datetime.datetime.strptime("2011-04-12", "%Y-%m-%d"), role=2, member_id=1)
@@ -298,11 +292,11 @@ if __name__ == "__main__":
         u4 = User(id=4, username="ZiXia", password=get_md5("123123"),
                   create_time=datetime.datetime.strptime("2015-03-24", "%Y-%m-%d"), role=2, member_id=3)
         u5 = User(id=5, username="ZhangWJ", password=get_md5("456456"),
-                  create_time=datetime.datetime.strptime("2017-04-12", "%Y-%m-%d"), role=1, member_id=1)
+                  create_time=datetime.datetime.strptime("2017-04-12", "%Y-%m-%d"), role=3, member_id=1)
         u6 = User(id=6, username="HuangR", password=get_md5("456456"),
-                  create_time=datetime.datetime.strptime("2017-05-13", "%Y-%m-%d"), role=1, member_id=2)
+                  create_time=datetime.datetime.strptime("2017-05-13", "%Y-%m-%d"), role=3, member_id=2)
         u7 = User(id=7, username="DuanY", password=get_md5("456456"),
-                  create_time=datetime.datetime.strptime("2018-01-22", "%Y-%m-%d"), role=1, member_id=3)
+                  create_time=datetime.datetime.strptime("2018-01-22", "%Y-%m-%d"), role=3, member_id=3)
         session.add_all([u1, u2, u3, u4, u5, u6, u7])
 
         session.commit()  # 插入数据

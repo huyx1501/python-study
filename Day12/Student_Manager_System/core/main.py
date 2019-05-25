@@ -2,25 +2,38 @@
 # -*- coding: utf-8 -*-
 # Author: Bob
 
-
-from conf import *
-
-
-class Student(BaseClass):
-    __tablename__ = "student"  # 表名
-    std_id = Column(Integer, primary_key=True)  # 主键
-    name = Column(String(50))  # 列
-    sex = Column(String(32))
-    age = Column(SmallInteger)
-
-    def __repr__(self):
-        return str({"std_id": self.std_id, "name": self.name, "sex": self.sex, "age": self.age})
+from core.auth import *
 
 
+@auth
+def admin_menu(user):
+    member_info = handler.get_member_info(user.member_id, user.role)
+    print("欢迎管理员[%s]" % member_info.name)
+
+
+@auth
+def student_menu(user):
+    member_info = handler.get_member_info(user.member_id, user.role)
+    print("欢迎[%s]同学" % member_info.name)
+
+
+@auth
+def teacher_menu(user):
+    member_info = handler.get_member_info(user.member_id, user.role)
+    print("欢迎[%s]老师" % member_info.name)
+
+
+@auth
 def main():
-    # 创建会话（连接）类并实例化
-    session = SessionClass()
-    print(session.query(Student).all())
+    user_type = user_data["user_info"].role
+    if user_type == 1:
+        admin_menu(user_data["user_info"])
+    elif user_type == 2:
+        teacher_menu(user_data["user_info"])
+    elif user_type == 3:
+        student_menu(user_data["user_info"])
+    else:
+        exit("账户信息异常")
 
 
 if __name__ == "__main__":
