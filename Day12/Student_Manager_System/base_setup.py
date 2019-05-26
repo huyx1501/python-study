@@ -22,8 +22,8 @@ class Student(BaseClass):
     status = Column(SmallInteger, nullable=False, default=0, comment="学生状态 0-游离 1-在校 2-毕业")
 
     def __repr__(self):
-        return str({"id": self.id, "name": self.name, "sex": self.sex, "age": self.age, "join_time": self.join_time,
-                    "status": self.status})
+        return str({"id": self.id, "name": self.name, "sex": self.sex, "age": self.age,
+                    "join_time": s_time(self.join_time), "status": self.status})
 
 
 class Teacher(BaseClass):
@@ -39,8 +39,8 @@ class Teacher(BaseClass):
     status = Column(SmallInteger, nullable=False, default=1, comment="教师状态 0-在野 1-在职")
 
     def __repr__(self):
-        return str({"id": self.id, "name": self.name, "sex": self.sex, "age": self.age, "join_time": self.join_time,
-                    "status": self.status})
+        return str({"id": self.id, "name": self.name, "sex": self.sex, "age": self.age,
+                    "join_time": s_time(self.join_time), "status": self.status})
 
 
 class SysUser(BaseClass):
@@ -57,7 +57,7 @@ class SysUser(BaseClass):
 
     def __repr__(self):
         return str({"id": self.id, "name": self.name, "sex": self.sex, "u_type": self.u_type,
-                    "create_time": self.create_time, "update_time": self.update_time})
+                    "create_time": s_time(self.create_time), "update_time": s_time(self.update_time)})
 
 
 class User(BaseClass):
@@ -78,8 +78,9 @@ class User(BaseClass):
 
     def __repr__(self):
         return str({"id": self.id, "username": self.username, "email": self.email,
-                    "phone": self.phone, "create_time": self.create_time, "update_time": self.update_time,
-                    "role": self.role, "member_id": self.member_id, "status": "正常" if self.status == 1 else "锁定"})
+                    "phone": self.phone, "create_time": s_time(self.create_time),
+                    "update_time": s_time(self.update_time), "role": self.role, "member_id": self.member_id,
+                    "status": "正常" if self.status == 1 else "锁定"})
 
 
 class Province(BaseClass):
@@ -120,7 +121,7 @@ class School(BaseClass):
     status = Column(SmallInteger, nullable=False, default=1, comment="学校状态 0-关闭 1-开放")
 
     def __repr__(self):
-        return str({"id": self.id, "name": self.name, "create_time": self.create_time, "address": self.address,
+        return str({"id": self.id, "name": self.name, "create_time": s_time(self.create_time), "address": self.address,
                     "province": self.province, "city": self.city, "status": "有效" if self.status == 1 else "无效"})
 
 
@@ -139,7 +140,7 @@ class Grade(BaseClass):
 
     def __repr__(self):
         return str({"id": self.id, "name": self.name, "course": self.course, "teacher": self.teacher,
-                    "create_time": self.create_time, "status": "开放" if self.status == 1 else "关闭"})
+                    "create_time": s_time(self.create_time), "status": "开放" if self.status == 1 else "关闭"})
 
 
 class Course(BaseClass):
@@ -166,7 +167,7 @@ class Register(BaseClass):
     register_cost = Column(Integer, comment="学费")
 
     def __repr__(self):
-        return str({"student": self.student_id, "grade": self.grade, "register_time": self.register_time,
+        return str({"student": self.student_id, "grade": self.grade, "register_time": s_time(self.register_time),
                     "cost": self.register_cost})
 
 
@@ -182,8 +183,8 @@ class TeacherJob(BaseClass):
     role = Column(SmallInteger, comment="任教类型 1-班主任 2-教师")
 
     def __repr__(self):
-        return str({"student": self.teacher_id, "grade": self.grade, "begin_time": self.begin_time,
-                    "end_time": self.end_time, "role": "教师" if self.role == 1 else "班主任"})
+        return str({"student": self.teacher_id, "grade": self.grade, "begin_time": s_time(self.begin_time),
+                    "end_time": s_time(self.end_time), "role": "教师" if self.role == 1 else "班主任"})
 
 
 class Record(BaseClass):
@@ -202,7 +203,7 @@ class Record(BaseClass):
     def __repr__(self):
         return str({"id": self.id, "student": self.student_id, "grade": self.grade, "teacher": self.teacher,
                     "class_sn": self.class_sn, "status": "已签到" if self.status == 1 else "未签到",
-                    "create_time": self.create_time})
+                    "create_time": s_time(self.create_time)})
 
 
 class Score(BaseClass):
@@ -223,9 +224,16 @@ class Score(BaseClass):
     teachers = relationship(Teacher, backref="record")
 
     def __repr__(self):
-        return str({"id": self.id, "student": self.student_id, "grade": self.grade, "create_time": self.create_time,
-                    "score": self.score, "score_time": self.score_time, "teacher": self.teacher_id,
-                    "remark": self.remark})
+        return str({"id": self.id, "student": self.student_id, "grade": self.grade,
+                    "create_time": s_time(self.create_time), "score": self.score, "score_time": s_time(self.score_time),
+                    "teacher": self.teacher_id, "remark": self.remark})
+
+
+def s_time(time):
+    if time:
+        return time.strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        return ""
 
 
 if __name__ == "__main__":

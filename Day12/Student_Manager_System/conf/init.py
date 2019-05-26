@@ -10,6 +10,7 @@ import os
 import hashlib
 import traceback
 import datetime
+import socketserver
 
 # 创建连接引擎
 engine = create_engine("mysql+pymysql://{}:{}@{}:{}/{}?charset={}".format(
