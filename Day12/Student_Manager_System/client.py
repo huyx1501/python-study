@@ -5,11 +5,13 @@
 import socket
 import hashlib
 import json
+import traceback
 
 # 服务器地址
 server = {
     "host": "127.0.0.1",
-    "port": 9999
+    "port": 9999,
+    "debug": True
 }
 
 
@@ -83,6 +85,8 @@ class SmsClient(object):
                 exit("服务器连接中断...")
         except (TypeError, ValueError) as e:
             print("数据包解析失败", e)
+            if server["debug"]:
+                traceback.print_exc()
             return
         except (ConnectionAbortedError, ConnectionResetError, ConnectionError) as e:
             exit("服务器连接中断 %s" % e)

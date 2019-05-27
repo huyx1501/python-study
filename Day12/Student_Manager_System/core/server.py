@@ -117,6 +117,8 @@ class MyHandler(socketserver.BaseRequestHandler):
                 return False
         except TypeError as e:
             print("数据异常，发送失败", e)
+            if local_server["debug"]:
+                traceback.print_exc()
             return False
 
 

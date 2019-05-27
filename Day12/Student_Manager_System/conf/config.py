@@ -19,5 +19,6 @@ mysql_config = {
 # 本地服务监听
 local_server = {
     "bind_ip": "0.0.0.0",
-    "bind_port": 9999
+    "bind_port": 9999,
+    "debug": True
 }
