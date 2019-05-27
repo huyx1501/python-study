@@ -229,6 +229,36 @@ class Score(BaseClass):
                     "teacher": self.teacher_id, "remark": self.remark})
 
 
+class Menu(BaseClass):
+    """
+    菜单项
+    """
+    __tablename__ = "%s_menu" % mysql_config["Prefix"]
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    pid = Column(Integer, comment="父菜单ID")
+    code = Column(String(50), nullable=False, comment="菜单代号", index=True)
+    name = Column(String(50), nullable=False, comment="菜单名称")
+    status = Column(SmallInteger, nullable=False, default=1, comment="菜单状态 0-关闭 1-开放")
+
+    def __repr__(self):
+        return str({"id": self.id, "pid": self.pid, "code": self.code, "name": self.name,
+                    "status": "有效" if self.status == 1 else "无效"})
+
+
+class MenuRole(BaseClass):
+    """
+    菜单权限
+    """
+    __tablename__ = "%s_menu_role" % mysql_config["Prefix"]
+    menu_id = Column(Integer, nullable=False, comment="菜单ID", primary_key=True)
+    user_id = Column(Integer, ForeignKey(User.id), nullable=False, comment="用户ID", primary_key=True)
+    role_type = Column(SmallInteger, nullable=False, default=1, comment="权限 1-只读 2-新增 3-修改 4-全部")
+    user = relationship(User, backref="menu_role")
+
+    def __repr__(self):
+        return str({"id": self.id, "menu_id": self.menu_id, "user_id": self.user_id, "role_type": self.role_type})
+
+
 def s_time(time):
     if time:
         return time.strftime("%Y-%m-%d %H:%M:%S")
@@ -306,6 +336,82 @@ if __name__ == "__main__":
         u7 = User(id=7, username="DuanY", password=get_md5("456456"),
                   create_time=datetime.datetime.strptime("2018-01-22", "%Y-%m-%d"), role=3, member_id=3)
         session.add_all([u1, u2, u3, u4, u5, u6, u7])
+
+        # 菜单表
+        # 一级菜单
+        m1 = Menu(id=1, code="user", name="用户管理")
+        m2 = Menu(id=2, code="address", name="地址管理")
+        m3 = Menu(id=3, code="course", name="课程管理")
+        m4 = Menu(id=4, code="school", name="学校管理")
+        m5 = Menu(id=5, code="menu", name="菜单管理")
+        m6 = Menu(id=6, code="user_mgt", name="系统管理")
+        # 二级菜单
+        m7 = Menu(id=7, pid=1, code="user_query", name="查询用户")
+        m8 = Menu(id=8, pid=1, code="user_add", name="添加用户")
+        m9 = Menu(id=9, pid=1, code="user_mod", name="修改用户")
+        m10 = Menu(id=10, pid=1, code="user_del", name="删除用户")
+        m11 = Menu(id=11, pid=2, code="province", name="省份管理")
+        m12 = Menu(id=12, pid=2, code="city", name="城市管理")
+        m13 = Menu(id=13, pid=3, code="course_query", name="查询课程")
+        m14 = Menu(id=14, pid=3, code="course_add", name="添加课程")
+        m15 = Menu(id=15, pid=3, code="course_mod", name="修改课程")
+        m16 = Menu(id=16, pid=3, code="course_del", name="删除课程")
+        m17 = Menu(id=17, pid=4, code="school_query", name="查询学校")
+        m18 = Menu(id=18, pid=4, code="school_add", name="添加学校")
+        m19 = Menu(id=19, pid=4, code="school_mod", name="修改学校")
+        m20 = Menu(id=20, pid=4, code="school_del", name="删除学校")
+
+        m21 = Menu(id=21, pid=5, code="menu_query", name="查询菜单")
+        m22 = Menu(id=22, pid=5, code="menu_mod", name="修改菜单")
+        m23 = Menu(id=23, pid=5, code="menu_add", name="添加菜单")
+        m24 = Menu(id=24, pid=5, code="menu_del", name="删除菜单")
+
+        m25 = Menu(id=25, pid=11, code="prov_query", name="查询省份")
+        m26 = Menu(id=26, pid=11, code="prov_add", name="添加省份")
+        m27 = Menu(id=27, pid=11, code="prov_mod", name="修改省份")
+        m28 = Menu(id=28, pid=11, code="prov_del", name="删除省份")
+        m29 = Menu(id=29, pid=12, code="city_query", name="查询城市")
+        m30 = Menu(id=30, pid=12, code="city_add", name="添加城市")
+        m31 = Menu(id=31, pid=12, code="city_mod", name="修改城市")
+        m32 = Menu(id=32, pid=12, code="city_del", name="删除城市")
+        session.add_all([m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15, m16, m17, m18, m19, m20, m21,
+                         m22, m23, m24, m25, m26, m27, m28, m29, m30, m31, m32])
+
+        # 菜单权限表
+        mr1 = MenuRole(menu_id=1, user_id=1, role_type=4)
+        mr2 = MenuRole(menu_id=2, user_id=1, role_type=4)
+        mr3 = MenuRole(menu_id=3, user_id=1, role_type=4)
+        mr4 = MenuRole(menu_id=4, user_id=1, role_type=4)
+        mr5 = MenuRole(menu_id=5, user_id=1, role_type=4)
+        mr6 = MenuRole(menu_id=6, user_id=1, role_type=4)
+        mr7 = MenuRole(menu_id=7, user_id=1, role_type=4)
+        mr8 = MenuRole(menu_id=8, user_id=1, role_type=4)
+        mr9 = MenuRole(menu_id=9, user_id=1, role_type=4)
+        mr10 = MenuRole(menu_id=10, user_id=1, role_type=4)
+        mr11 = MenuRole(menu_id=11, user_id=1, role_type=4)
+        mr12 = MenuRole(menu_id=12, user_id=1, role_type=4)
+        mr13 = MenuRole(menu_id=13, user_id=1, role_type=4)
+        mr14 = MenuRole(menu_id=14, user_id=1, role_type=4)
+        mr15 = MenuRole(menu_id=15, user_id=1, role_type=4)
+        mr16 = MenuRole(menu_id=16, user_id=1, role_type=4)
+        mr17 = MenuRole(menu_id=17, user_id=1, role_type=4)
+        mr18 = MenuRole(menu_id=18, user_id=1, role_type=4)
+        mr19 = MenuRole(menu_id=19, user_id=1, role_type=4)
+        mr20 = MenuRole(menu_id=20, user_id=1, role_type=4)
+        mr21 = MenuRole(menu_id=21, user_id=1, role_type=4)
+        mr22 = MenuRole(menu_id=22, user_id=1, role_type=4)
+        mr23 = MenuRole(menu_id=23, user_id=1, role_type=4)
+        mr24 = MenuRole(menu_id=24, user_id=1, role_type=4)
+        mr25 = MenuRole(menu_id=25, user_id=1, role_type=4)
+        mr26 = MenuRole(menu_id=26, user_id=1, role_type=4)
+        mr27 = MenuRole(menu_id=27, user_id=1, role_type=4)
+        mr28 = MenuRole(menu_id=28, user_id=1, role_type=4)
+        mr29 = MenuRole(menu_id=29, user_id=1, role_type=4)
+        mr30 = MenuRole(menu_id=30, user_id=1, role_type=4)
+        mr31 = MenuRole(menu_id=31, user_id=1, role_type=4)
+        mr32 = MenuRole(menu_id=32, user_id=1, role_type=4)
+        session.add_all([mr1, mr2, mr3, mr4, mr5, mr6, mr7, mr8, mr9, mr10, mr11, mr12, mr13, mr14, mr15, mr16, mr17,
+                         mr18, mr19, mr20, mr21, mr22, mr23, mr24, mr25, mr26, mr27, mr28, mr29, mr30, mr31, mr32])
 
         session.commit()  # 插入数据
 
