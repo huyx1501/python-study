@@ -13,6 +13,7 @@ class MyHandler(socketserver.BaseRequestHandler):
         self.auth_user = None
         self.member_info = None
         self.menu = {}
+        self.location = None
         super().__init__(request, client_address, server)
         print("客户端已连接", self.client_address)
 
@@ -77,7 +78,10 @@ class MyHandler(socketserver.BaseRequestHandler):
         else:
             exit("账户信息异常")
         menu = self.show_menu()
-        self.data_transfer(menu)
+        self.data_transfer(menu, data_type="menu")
+        while True:
+            choice = self.request.recv(1024).decode("utf-8")
+            self.data_transfer("Your choice is %s" % choice, data_type="data")
 
     def show_menu(self, _pid=None):
         self.menu = handler.get_menu(self.auth_user.id, _pid)
@@ -90,10 +94,11 @@ class MyHandler(socketserver.BaseRequestHandler):
         else:
             return "没有有效权限"
 
-    def data_transfer(self, data, code=200):
+    def data_transfer(self, data, data_type="data", code=200):
         """
         发送消息到客户端
         :param data: 要发送的消息，能被json序列号的类型
+        :param data_type: 消息类型，分为菜单消息和数据消息
         :param code: 消息状态码，可参考HTTP协议
         :return: True Or False
         """
@@ -101,6 +106,7 @@ class MyHandler(socketserver.BaseRequestHandler):
             if data or code:
                 msg = json.dumps({
                     "code": code,
+                    "data_type": data_type,
                     "data": data
                 })
                 # print(msg)

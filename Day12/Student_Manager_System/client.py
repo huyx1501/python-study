@@ -33,13 +33,7 @@ class SmsClient(object):
                 print(self.login())
             else:
                 print("[%s], 欢迎使用" % self.member_info["name"])
-                main_menu = self.get_response()["data"]
-                if isinstance(main_menu, list):
-                    for i, menu in enumerate(main_menu):
-                        print("%d: %s" % (i+1, list(menu.values())[0]))
-                    self.interaction()
-                else:
-                    print(main_menu)
+                self.interaction()
                 break
         else:
             exit("登陆失败次数达到上限")
@@ -67,8 +61,18 @@ class SmsClient(object):
 
     def interaction(self):
         while True:
+            result = self.get_response()
+            if isinstance(result["data"], list) and result["data_type"] == "menu":
+                self.show_menu(result["data"])
+            else:
+                print(result)
             msg = input(">> ")
-            print(msg)
+            self.client.sendall(msg.encode("utf-8"))
+
+    @staticmethod
+    def show_menu(menu_data):
+        for i, menu in enumerate(menu_data):
+            print("%d: %s" % (i + 1, list(menu.values())[0]))
 
     def get_response(self):
         """
