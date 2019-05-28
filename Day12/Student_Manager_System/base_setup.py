@@ -344,7 +344,7 @@ if __name__ == "__main__":
         m3 = Menu(id=3, code="course", name="课程管理")
         m4 = Menu(id=4, code="school", name="学校管理")
         m5 = Menu(id=5, code="menu", name="菜单管理")
-        m6 = Menu(id=6, code="user_mgt", name="系统管理")
+        m6 = Menu(id=6, code="auth", name="权限管理")
         # 二级菜单
         m7 = Menu(id=7, pid=1, code="user_query", name="查询用户")
         m8 = Menu(id=8, pid=1, code="user_add", name="添加用户")
@@ -360,22 +360,26 @@ if __name__ == "__main__":
         m18 = Menu(id=18, pid=4, code="school_add", name="添加学校")
         m19 = Menu(id=19, pid=4, code="school_mod", name="修改学校")
         m20 = Menu(id=20, pid=4, code="school_del", name="删除学校")
-
         m21 = Menu(id=21, pid=5, code="menu_query", name="查询菜单")
         m22 = Menu(id=22, pid=5, code="menu_mod", name="修改菜单")
         m23 = Menu(id=23, pid=5, code="menu_add", name="添加菜单")
         m24 = Menu(id=24, pid=5, code="menu_del", name="删除菜单")
+        m25 = Menu(id=25, pid=6, code="auth_query", name="查询权限")
+        m26 = Menu(id=26, pid=6, code="auth_add", name="添加权限")
+        m27 = Menu(id=27, pid=6, code="auth_mod", name="修改权限")
+        m28 = Menu(id=28, pid=6, code="auth_del", name="删除权限")
+        # 三级菜单
+        m29 = Menu(id=29, pid=11, code="prov_query", name="查询省份")
+        m30 = Menu(id=30, pid=11, code="prov_add", name="添加省份")
+        m31 = Menu(id=31, pid=11, code="prov_mod", name="修改省份")
+        m32 = Menu(id=32, pid=11, code="prov_del", name="删除省份")
+        m33 = Menu(id=33, pid=12, code="city_query", name="查询城市")
+        m34 = Menu(id=34, pid=12, code="city_add", name="添加城市")
+        m35 = Menu(id=35, pid=12, code="city_mod", name="修改城市")
+        m36 = Menu(id=36, pid=12, code="city_del", name="删除城市")
 
-        m25 = Menu(id=25, pid=11, code="prov_query", name="查询省份")
-        m26 = Menu(id=26, pid=11, code="prov_add", name="添加省份")
-        m27 = Menu(id=27, pid=11, code="prov_mod", name="修改省份")
-        m28 = Menu(id=28, pid=11, code="prov_del", name="删除省份")
-        m29 = Menu(id=29, pid=12, code="city_query", name="查询城市")
-        m30 = Menu(id=30, pid=12, code="city_add", name="添加城市")
-        m31 = Menu(id=31, pid=12, code="city_mod", name="修改城市")
-        m32 = Menu(id=32, pid=12, code="city_del", name="删除城市")
         session.add_all([m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15, m16, m17, m18, m19, m20, m21,
-                         m22, m23, m24, m25, m26, m27, m28, m29, m30, m31, m32])
+                         m22, m23, m24, m25, m26, m27, m28, m29, m30, m31, m32, m33, m34, m35, m36])
 
         # 菜单权限表
         mr1 = MenuRole(menu_id=1, user_id=1, role_type=4)
