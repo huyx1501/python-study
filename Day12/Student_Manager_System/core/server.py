@@ -9,15 +9,11 @@ import json
 
 class MyHandler(socketserver.BaseRequestHandler):
     def __init__(self, request, client_address, server):
+        self.login_times = 0
+        self.auth_user = None
+        self.member_info = None
+        self.menu = {}
         super().__init__(request, client_address, server)
-        self.login_times = 0
-        self.auth_user = None
-        self.member_info = None
-
-    def setup(self):
-        self.login_times = 0
-        self.auth_user = None
-        self.member_info = None
         print("客户端已连接", self.client_address)
 
     def handle(self):
@@ -73,22 +69,26 @@ class MyHandler(socketserver.BaseRequestHandler):
     def main(self):
         user_type = self.auth_user.role
         if user_type == 1:
-            self.admin_menu()
+            print("管理员[%s]已登陆" % self.member_info.name)
         elif user_type == 2:
-            self.teacher_menu()
+            print("[%s]老师已登陆" % self.member_info.name)
         elif user_type == 3:
-            self.teacher_menu()
+            print("[%s]同学已登陆" % self.member_info.name)
         else:
             exit("账户信息异常")
+        menu = self.show_menu()
+        self.data_transfer(menu)
 
-    def admin_menu(self):
-        print("管理员[%s]已登陆" % self.member_info.name)
-
-    def teacher_menu(self):
-        print("[%s]老师已登陆" % self.member_info.name)
-
-    def student_menu(self):
-        print("[%s]同学已登陆" % self.member_info.name)
+    def show_menu(self, _pid=None):
+        self.menu = handler.get_menu(self.auth_user.id, _pid)
+        menu_list = []
+        if self.menu:
+            for mid, pid, code, name in self.menu:
+                if pid == _pid:
+                    menu_list.append({code: name})
+            return menu_list
+        else:
+            return "没有有效权限"
 
     def data_transfer(self, data, code=200):
         """

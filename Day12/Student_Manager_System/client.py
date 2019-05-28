@@ -33,6 +33,13 @@ class SmsClient(object):
                 print(self.login())
             else:
                 print("[%s], 欢迎使用" % self.member_info["name"])
+                main_menu = self.get_response()["data"]
+                if isinstance(main_menu, list):
+                    for i, menu in enumerate(main_menu):
+                        print("%d: %s" % (i+1, list(menu.values())[0]))
+                    self.interaction()
+                else:
+                    print(main_menu)
                 break
         else:
             exit("登陆失败次数达到上限")
@@ -43,7 +50,8 @@ class SmsClient(object):
         auth_data["password"] = self.get_md5(input("请输入密码："))
         if not auth_data["username"] or not auth_data["password"]:
             return "请输入账号密码"
-        login_result = self.data_transfer(auth_data)
+        self.client.sendall(json.dumps(auth_data).encode("utf-8"))
+        login_result = self.get_response()
         # print(login_result)
         if login_result:
             if login_result["code"] == 200:
@@ -57,15 +65,18 @@ class SmsClient(object):
             self.login_times += 1
             return "登陆失败"
 
-    def data_transfer(self, msg):
+    def interaction(self):
+        while True:
+            msg = input(">> ")
+            print(msg)
+
+    def get_response(self):
         """
-        发送消息到服务器并接收返回的内容
-        :param msg: 要发送的消息，能被json序列号的类型
+        接收服务器消息
         :return: 返回收到的消息
         """
         try:
-            msg = json.dumps(msg)
-            self.client.sendall(msg.encode("utf-8"))
+
             result_length = int(self.client.recv(1024).decode("utf-8"))  # 服务器返回数据长度
             if result_length:
                 self.client.sendall("ACK".encode("utf-8"))  # 发送应答报文

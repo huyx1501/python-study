@@ -25,6 +25,17 @@ class Handler(object):
         if role_id == 3:  # 学生
             return self.session.query(Student).filter(Student.id == member_id).first()
 
+    def get_menu(self, user_id, pid):
+        if not pid:
+            return self.session.query(Menu.id, Menu.pid, Menu.code, Menu.name).filter(Menu.id == MenuRole.menu_id)\
+                                                                              .filter(MenuRole.user_id == user_id)\
+                                                                              .filter(Menu.status == 1).all()
+        else:
+            return self.session.query(Menu.id, Menu.pid, Menu.code, Menu.name).filter(Menu.id == MenuRole.menu_id)\
+                                                                              .filter(MenuRole.user_id == user_id)\
+                                                                              .filter(Menu.status == 1)\
+                                                                              .filter(Menu.pid == pid).all()
+
     def get_school(self):
         pass
 

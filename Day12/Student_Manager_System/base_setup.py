@@ -236,7 +236,7 @@ class Menu(BaseClass):
     __tablename__ = "%s_menu" % mysql_config["Prefix"]
     id = Column(Integer, primary_key=True, autoincrement=True)
     pid = Column(Integer, comment="父菜单ID")
-    code = Column(String(50), nullable=False, comment="菜单代号", index=True)
+    code = Column(String(50), comment="菜单代号", index=True)
     name = Column(String(50), nullable=False, comment="菜单名称")
     status = Column(SmallInteger, nullable=False, default=1, comment="菜单状态 0-关闭 1-开放")
 
@@ -256,7 +256,7 @@ class MenuRole(BaseClass):
     user = relationship(User, backref="menu_role")
 
     def __repr__(self):
-        return str({"id": self.id, "menu_id": self.menu_id, "user_id": self.user_id, "role_type": self.role_type})
+        return str({"menu_id": self.menu_id, "user_id": self.user_id, "role_type": self.role_type})
 
 
 def s_time(time):
@@ -266,160 +266,160 @@ def s_time(time):
         return ""
 
 
+def initialize():
+    """
+    初始化数据
+    """
+    session = SessionClass()
+    # 地址
+    a1 = Province(id=1, name="北京")
+    a2 = Province(id=2, name="上海")
+    a3 = Province(id=3, name="广东")
+    c1 = City(id=1, name="北京市")
+    c2 = City(id=2, name="上海市")
+    c3 = City(id=3, name="广州")
+    c4 = City(id=4, name="深圳")
+    session.add_all([a1, a2, a3, c1, c2, c3, c4])
+
+    # 课程
+    cou1 = Course(id=1, name="Python")
+    cou2 = Course(id=2, name="PHP")
+    cou3 = Course(id=3, name="Java")
+    session.add_all([cou1, cou2, cou3])
+
+    # 学校
+    s1 = School(id=1, name="武当派", create_time=datetime.datetime.strptime("2011-05-05", "%Y-%m-%d"), address="武当山",
+                province=2, city=2)
+    s2 = School(id=2, name="少林派", create_time=datetime.datetime.strptime("2010-06-12", "%Y-%m-%d"), address="嵩山",
+                province=1, city=1)
+    session.add_all([s1, s2])
+
+    # 班级
+    g1 = Grade(id=1, name="Python全栈第8期", course=1, teacher=3, school=2,
+               create_time=datetime.datetime.strptime("2017-09-21", "%Y-%m-%d"), status=0)
+    g2 = Grade(id=2, name="Java从入门到放弃", course=3, teacher=2, school=1,
+               create_time=datetime.datetime.strptime("2018-08-20", "%Y-%m-%d"))
+    g3 = Grade(id=3, name="Python自动化第3期", course=1, teacher=3, school=1,
+               create_time=datetime.datetime.strptime("2018-12-25", "%Y-%m-%d"))
+    session.add_all([g1, g2, g3])
+
+    # 教师
+    t1 = Teacher(id=1, name="张三丰", sex="M", age=65, status=0)
+    t2 = Teacher(id=2, name="王重阳", sex="M", age=60, status=0)
+    t3 = Teacher(id=3, name="紫霞仙子", sex="F", age=200, status=0)
+    session.add_all([t1, t2, t3])
+
+    # 学生
+    st1 = Student(id=1, name="张无忌", sex="M", age=18, status=0)
+    st2 = Student(id=2, name="黄蓉", sex="F", age=22, status=0)
+    st3 = Student(id=3, name="段誉", sex="M", age=19, status=0)
+    session.add_all([st1, st2, st3])
+
+    # 系统用户表
+    su1 = SysUser(id=1, name="伊利丹.怒风", sex="M", u_type=1, create_time=datetime.datetime.now())
+    session.add_all([su1, ])
+
+    # 用户表
+    u1 = User(id=1, username="Admin", password=get_md5("12345678"), create_time=datetime.datetime.now(), role=1,
+              member_id=1)
+    u2 = User(id=2, username="ZhangSF", password=get_md5("123123"),
+              create_time=datetime.datetime.strptime("2011-04-12", "%Y-%m-%d"), role=2, member_id=1)
+    u3 = User(id=3, username="WangCY", password=get_md5("123123"),
+              create_time=datetime.datetime.strptime("2012-06-19", "%Y-%m-%d"), role=2, member_id=2)
+    u4 = User(id=4, username="ZiXia", password=get_md5("123123"),
+              create_time=datetime.datetime.strptime("2015-03-24", "%Y-%m-%d"), role=2, member_id=3)
+    u5 = User(id=5, username="ZhangWJ", password=get_md5("456456"),
+              create_time=datetime.datetime.strptime("2017-04-12", "%Y-%m-%d"), role=3, member_id=1)
+    u6 = User(id=6, username="HuangR", password=get_md5("456456"),
+              create_time=datetime.datetime.strptime("2017-05-13", "%Y-%m-%d"), role=3, member_id=2)
+    u7 = User(id=7, username="DuanY", password=get_md5("456456"),
+              create_time=datetime.datetime.strptime("2018-01-22", "%Y-%m-%d"), role=3, member_id=3)
+    session.add_all([u1, u2, u3, u4, u5, u6, u7])
+
+    # 菜单表
+    # 一级菜单
+    m1 = Menu(id=1, name="用户管理")
+    m2 = Menu(id=2, name="地址管理")
+    m3 = Menu(id=3, name="课程管理")
+    m4 = Menu(id=4, name="学校管理")
+    m5 = Menu(id=5, name="菜单管理")
+    m6 = Menu(id=6, name="权限管理")
+    # 二级菜单
+    m7 = Menu(id=7, pid=1, code="user_query", name="查询用户")
+    m8 = Menu(id=8, pid=1, code="user_add", name="添加用户")
+    m9 = Menu(id=9, pid=1, code="user_mod", name="修改用户")
+    m10 = Menu(id=10, pid=1, code="user_del", name="删除用户")
+    m11 = Menu(id=11, pid=2, name="省份管理")
+    m12 = Menu(id=12, pid=2, name="城市管理")
+    m13 = Menu(id=13, pid=3, code="course_query", name="查询课程")
+    m14 = Menu(id=14, pid=3, code="course_add", name="添加课程")
+    m15 = Menu(id=15, pid=3, code="course_mod", name="修改课程")
+    m16 = Menu(id=16, pid=3, code="course_del", name="删除课程")
+    m17 = Menu(id=17, pid=4, code="school_query", name="查询学校")
+    m18 = Menu(id=18, pid=4, code="school_add", name="添加学校")
+    m19 = Menu(id=19, pid=4, code="school_mod", name="修改学校")
+    m20 = Menu(id=20, pid=4, code="school_del", name="删除学校")
+    m21 = Menu(id=21, pid=5, code="menu_query", name="查询菜单")
+    m22 = Menu(id=22, pid=5, code="menu_mod", name="修改菜单")
+    m23 = Menu(id=23, pid=5, code="menu_add", name="添加菜单")
+    m24 = Menu(id=24, pid=5, code="menu_del", name="删除菜单")
+    m25 = Menu(id=25, pid=6, code="auth_query", name="查询权限")
+    m26 = Menu(id=26, pid=6, code="auth_add", name="添加权限")
+    m27 = Menu(id=27, pid=6, code="auth_mod", name="修改权限")
+    m28 = Menu(id=28, pid=6, code="auth_del", name="删除权限")
+    # 三级菜单
+    m29 = Menu(id=29, pid=11, code="prov_query", name="查询省份")
+    m30 = Menu(id=30, pid=11, code="prov_add", name="添加省份")
+    m31 = Menu(id=31, pid=11, code="prov_mod", name="修改省份")
+    m32 = Menu(id=32, pid=11, code="prov_del", name="删除省份")
+    m33 = Menu(id=33, pid=12, code="city_query", name="查询城市")
+    m34 = Menu(id=34, pid=12, code="city_add", name="添加城市")
+    m35 = Menu(id=35, pid=12, code="city_mod", name="修改城市")
+    m36 = Menu(id=36, pid=12, code="city_del", name="删除城市")
+
+    session.add_all([m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15, m16, m17, m18, m19, m20, m21,
+                     m22, m23, m24, m25, m26, m27, m28, m29, m30, m31, m32, m33, m34, m35, m36])
+
+    # 菜单权限表
+    mr1 = MenuRole(menu_id=1, user_id=1, role_type=4)
+    mr2 = MenuRole(menu_id=2, user_id=1, role_type=4)
+    mr3 = MenuRole(menu_id=3, user_id=1, role_type=4)
+    mr4 = MenuRole(menu_id=4, user_id=1, role_type=4)
+    mr5 = MenuRole(menu_id=5, user_id=1, role_type=4)
+    mr6 = MenuRole(menu_id=6, user_id=1, role_type=4)
+    mr7 = MenuRole(menu_id=7, user_id=1, role_type=4)
+    mr8 = MenuRole(menu_id=8, user_id=1, role_type=4)
+    mr9 = MenuRole(menu_id=9, user_id=1, role_type=4)
+    mr10 = MenuRole(menu_id=10, user_id=1, role_type=4)
+    mr11 = MenuRole(menu_id=11, user_id=1, role_type=4)
+    mr12 = MenuRole(menu_id=12, user_id=1, role_type=4)
+    mr13 = MenuRole(menu_id=13, user_id=1, role_type=4)
+    mr14 = MenuRole(menu_id=14, user_id=1, role_type=4)
+    mr15 = MenuRole(menu_id=15, user_id=1, role_type=4)
+    mr16 = MenuRole(menu_id=16, user_id=1, role_type=4)
+    mr17 = MenuRole(menu_id=17, user_id=1, role_type=4)
+    mr18 = MenuRole(menu_id=18, user_id=1, role_type=4)
+    mr19 = MenuRole(menu_id=19, user_id=1, role_type=4)
+    mr20 = MenuRole(menu_id=20, user_id=1, role_type=4)
+    mr21 = MenuRole(menu_id=21, user_id=1, role_type=4)
+    mr22 = MenuRole(menu_id=22, user_id=1, role_type=4)
+    mr23 = MenuRole(menu_id=23, user_id=1, role_type=4)
+    mr24 = MenuRole(menu_id=24, user_id=1, role_type=4)
+    mr25 = MenuRole(menu_id=25, user_id=1, role_type=4)
+    mr26 = MenuRole(menu_id=26, user_id=1, role_type=4)
+    mr27 = MenuRole(menu_id=27, user_id=1, role_type=4)
+    mr28 = MenuRole(menu_id=28, user_id=1, role_type=4)
+    mr29 = MenuRole(menu_id=29, user_id=1, role_type=4)
+    mr30 = MenuRole(menu_id=30, user_id=1, role_type=4)
+    mr31 = MenuRole(menu_id=31, user_id=1, role_type=4)
+    mr32 = MenuRole(menu_id=32, user_id=1, role_type=4)
+    session.add_all([mr1, mr2, mr3, mr4, mr5, mr6, mr7, mr8, mr9, mr10, mr11, mr12, mr13, mr14, mr15, mr16, mr17,
+                     mr18, mr19, mr20, mr21, mr22, mr23, mr24, mr25, mr26, mr27, mr28, mr29, mr30, mr31, mr32])
+
+    session.commit()  # 插入数据
+
+
 if __name__ == "__main__":
-    def initialize():
-        """
-        初始化数据
-        """
-        session = SessionClass()
-        # 地址
-        a1 = Province(id=1, name="北京")
-        a2 = Province(id=2, name="上海")
-        a3 = Province(id=3, name="广东")
-        c1 = City(id=1, name="北京市")
-        c2 = City(id=2, name="上海市")
-        c3 = City(id=3, name="广州")
-        c4 = City(id=4, name="深圳")
-        session.add_all([a1, a2, a3, c1, c2, c3, c4])
-
-        # 课程
-        cou1 = Course(id=1, name="Python")
-        cou2 = Course(id=2, name="PHP")
-        cou3 = Course(id=3, name="Java")
-        session.add_all([cou1, cou2, cou3])
-
-        # 学校
-        s1 = School(id=1, name="武当派", create_time=datetime.datetime.strptime("2011-05-05", "%Y-%m-%d"), address="武当山",
-                    province=2, city=2)
-        s2 = School(id=2, name="少林派", create_time=datetime.datetime.strptime("2010-06-12", "%Y-%m-%d"), address="嵩山",
-                    province=1, city=1)
-        session.add_all([s1, s2])
-
-        # 班级
-        g1 = Grade(id=1, name="Python全栈第8期", course=1, teacher=3, school=2,
-                   create_time=datetime.datetime.strptime("2017-09-21", "%Y-%m-%d"), status=0)
-        g2 = Grade(id=2, name="Java从入门到放弃", course=3, teacher=2, school=1,
-                   create_time=datetime.datetime.strptime("2018-08-20", "%Y-%m-%d"))
-        g3 = Grade(id=3, name="Python自动化第3期", course=1, teacher=3, school=1,
-                   create_time=datetime.datetime.strptime("2018-12-25", "%Y-%m-%d"))
-        session.add_all([g1, g2, g3])
-
-        # 教师
-        t1 = Teacher(id=1, name="张三丰", sex="M", age=65, status=0)
-        t2 = Teacher(id=2, name="王重阳", sex="M", age=60, status=0)
-        t3 = Teacher(id=3, name="紫霞仙子", sex="F", age=200, status=0)
-        session.add_all([t1, t2, t3])
-
-        # 学生
-        st1 = Student(id=1, name="张无忌", sex="M", age=18, status=0)
-        st2 = Student(id=2, name="黄蓉", sex="F", age=22, status=0)
-        st3 = Student(id=3, name="段誉", sex="M", age=19, status=0)
-        session.add_all([st1, st2, st3])
-
-        # 系统用户表
-        su1 = SysUser(id=1, name="伊利丹.怒风", sex="M", u_type=1, create_time=datetime.datetime.now())
-        session.add_all([su1, ])
-
-        # 用户表
-        u1 = User(id=1, username="Admin", password=get_md5("12345678"), create_time=datetime.datetime.now(), role=1,
-                  member_id=1)
-        u2 = User(id=2, username="ZhangSF", password=get_md5("123123"),
-                  create_time=datetime.datetime.strptime("2011-04-12", "%Y-%m-%d"), role=2, member_id=1)
-        u3 = User(id=3, username="WangCY", password=get_md5("123123"),
-                  create_time=datetime.datetime.strptime("2012-06-19", "%Y-%m-%d"), role=2, member_id=2)
-        u4 = User(id=4, username="ZiXia", password=get_md5("123123"),
-                  create_time=datetime.datetime.strptime("2015-03-24", "%Y-%m-%d"), role=2, member_id=3)
-        u5 = User(id=5, username="ZhangWJ", password=get_md5("456456"),
-                  create_time=datetime.datetime.strptime("2017-04-12", "%Y-%m-%d"), role=3, member_id=1)
-        u6 = User(id=6, username="HuangR", password=get_md5("456456"),
-                  create_time=datetime.datetime.strptime("2017-05-13", "%Y-%m-%d"), role=3, member_id=2)
-        u7 = User(id=7, username="DuanY", password=get_md5("456456"),
-                  create_time=datetime.datetime.strptime("2018-01-22", "%Y-%m-%d"), role=3, member_id=3)
-        session.add_all([u1, u2, u3, u4, u5, u6, u7])
-
-        # 菜单表
-        # 一级菜单
-        m1 = Menu(id=1, code="user", name="用户管理")
-        m2 = Menu(id=2, code="address", name="地址管理")
-        m3 = Menu(id=3, code="course", name="课程管理")
-        m4 = Menu(id=4, code="school", name="学校管理")
-        m5 = Menu(id=5, code="menu", name="菜单管理")
-        m6 = Menu(id=6, code="auth", name="权限管理")
-        # 二级菜单
-        m7 = Menu(id=7, pid=1, code="user_query", name="查询用户")
-        m8 = Menu(id=8, pid=1, code="user_add", name="添加用户")
-        m9 = Menu(id=9, pid=1, code="user_mod", name="修改用户")
-        m10 = Menu(id=10, pid=1, code="user_del", name="删除用户")
-        m11 = Menu(id=11, pid=2, code="province", name="省份管理")
-        m12 = Menu(id=12, pid=2, code="city", name="城市管理")
-        m13 = Menu(id=13, pid=3, code="course_query", name="查询课程")
-        m14 = Menu(id=14, pid=3, code="course_add", name="添加课程")
-        m15 = Menu(id=15, pid=3, code="course_mod", name="修改课程")
-        m16 = Menu(id=16, pid=3, code="course_del", name="删除课程")
-        m17 = Menu(id=17, pid=4, code="school_query", name="查询学校")
-        m18 = Menu(id=18, pid=4, code="school_add", name="添加学校")
-        m19 = Menu(id=19, pid=4, code="school_mod", name="修改学校")
-        m20 = Menu(id=20, pid=4, code="school_del", name="删除学校")
-        m21 = Menu(id=21, pid=5, code="menu_query", name="查询菜单")
-        m22 = Menu(id=22, pid=5, code="menu_mod", name="修改菜单")
-        m23 = Menu(id=23, pid=5, code="menu_add", name="添加菜单")
-        m24 = Menu(id=24, pid=5, code="menu_del", name="删除菜单")
-        m25 = Menu(id=25, pid=6, code="auth_query", name="查询权限")
-        m26 = Menu(id=26, pid=6, code="auth_add", name="添加权限")
-        m27 = Menu(id=27, pid=6, code="auth_mod", name="修改权限")
-        m28 = Menu(id=28, pid=6, code="auth_del", name="删除权限")
-        # 三级菜单
-        m29 = Menu(id=29, pid=11, code="prov_query", name="查询省份")
-        m30 = Menu(id=30, pid=11, code="prov_add", name="添加省份")
-        m31 = Menu(id=31, pid=11, code="prov_mod", name="修改省份")
-        m32 = Menu(id=32, pid=11, code="prov_del", name="删除省份")
-        m33 = Menu(id=33, pid=12, code="city_query", name="查询城市")
-        m34 = Menu(id=34, pid=12, code="city_add", name="添加城市")
-        m35 = Menu(id=35, pid=12, code="city_mod", name="修改城市")
-        m36 = Menu(id=36, pid=12, code="city_del", name="删除城市")
-
-        session.add_all([m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15, m16, m17, m18, m19, m20, m21,
-                         m22, m23, m24, m25, m26, m27, m28, m29, m30, m31, m32, m33, m34, m35, m36])
-
-        # 菜单权限表
-        mr1 = MenuRole(menu_id=1, user_id=1, role_type=4)
-        mr2 = MenuRole(menu_id=2, user_id=1, role_type=4)
-        mr3 = MenuRole(menu_id=3, user_id=1, role_type=4)
-        mr4 = MenuRole(menu_id=4, user_id=1, role_type=4)
-        mr5 = MenuRole(menu_id=5, user_id=1, role_type=4)
-        mr6 = MenuRole(menu_id=6, user_id=1, role_type=4)
-        mr7 = MenuRole(menu_id=7, user_id=1, role_type=4)
-        mr8 = MenuRole(menu_id=8, user_id=1, role_type=4)
-        mr9 = MenuRole(menu_id=9, user_id=1, role_type=4)
-        mr10 = MenuRole(menu_id=10, user_id=1, role_type=4)
-        mr11 = MenuRole(menu_id=11, user_id=1, role_type=4)
-        mr12 = MenuRole(menu_id=12, user_id=1, role_type=4)
-        mr13 = MenuRole(menu_id=13, user_id=1, role_type=4)
-        mr14 = MenuRole(menu_id=14, user_id=1, role_type=4)
-        mr15 = MenuRole(menu_id=15, user_id=1, role_type=4)
-        mr16 = MenuRole(menu_id=16, user_id=1, role_type=4)
-        mr17 = MenuRole(menu_id=17, user_id=1, role_type=4)
-        mr18 = MenuRole(menu_id=18, user_id=1, role_type=4)
-        mr19 = MenuRole(menu_id=19, user_id=1, role_type=4)
-        mr20 = MenuRole(menu_id=20, user_id=1, role_type=4)
-        mr21 = MenuRole(menu_id=21, user_id=1, role_type=4)
-        mr22 = MenuRole(menu_id=22, user_id=1, role_type=4)
-        mr23 = MenuRole(menu_id=23, user_id=1, role_type=4)
-        mr24 = MenuRole(menu_id=24, user_id=1, role_type=4)
-        mr25 = MenuRole(menu_id=25, user_id=1, role_type=4)
-        mr26 = MenuRole(menu_id=26, user_id=1, role_type=4)
-        mr27 = MenuRole(menu_id=27, user_id=1, role_type=4)
-        mr28 = MenuRole(menu_id=28, user_id=1, role_type=4)
-        mr29 = MenuRole(menu_id=29, user_id=1, role_type=4)
-        mr30 = MenuRole(menu_id=30, user_id=1, role_type=4)
-        mr31 = MenuRole(menu_id=31, user_id=1, role_type=4)
-        mr32 = MenuRole(menu_id=32, user_id=1, role_type=4)
-        session.add_all([mr1, mr2, mr3, mr4, mr5, mr6, mr7, mr8, mr9, mr10, mr11, mr12, mr13, mr14, mr15, mr16, mr17,
-                         mr18, mr19, mr20, mr21, mr22, mr23, mr24, mr25, mr26, mr27, mr28, mr29, mr30, mr31, mr32])
-
-        session.commit()  # 插入数据
-
-
     if os.path.isfile("install.lock"):
         exit("已初始化，如需重新初始化，请删除数据库表及install.lock文件后再次运行本程序")
     else:
