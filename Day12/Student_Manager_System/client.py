@@ -21,6 +21,9 @@ class SmsClient(object):
         self.login_times = 0
         self.auth_user = None
         self.member_info = None
+        self.menu = None
+        self.current_menu = []
+        self.position = None
 
     def main(self):
         try:
@@ -33,7 +36,8 @@ class SmsClient(object):
                 print(self.login())
             else:
                 print("[%s], 欢迎使用" % self.member_info["name"])
-                self.interaction()
+                self.show_menu()  # 显示主菜单
+                self.interaction()  # 开始交互
                 break
         else:
             exit("登陆失败次数达到上限")
@@ -51,6 +55,7 @@ class SmsClient(object):
             if login_result["code"] == 200:
                 self.auth_user = json.loads(login_result["data"][0].replace("'", "\"").replace("None", '""'))
                 self.member_info = json.loads(login_result["data"][1].replace("'", "\"").replace("None", '""'))
+                self.menu = login_result["data"][2]
                 return "登陆成功"
             else:
                 self.login_times += 1
@@ -59,20 +64,35 @@ class SmsClient(object):
             self.login_times += 1
             return "登陆失败"
 
+    def show_menu(self):
+        self.current_menu.clear()
+        for menu in self.menu:
+            if menu[1] == self.position:  # 仅显示当前位置下的子菜单
+                self.current_menu.append(menu)
+        for i, m in enumerate(self.current_menu):
+            print("%d: %s" % (i + 1, m[3]))
+
     def interaction(self):
         while True:
-            result = self.get_response()
-            if isinstance(result["data"], list) and result["data_type"] == "menu":
-                self.show_menu(result["data"])
-            else:
-                print(result)
-            msg = input(">> ")
-            self.client.sendall(msg.encode("utf-8"))
-
-    @staticmethod
-    def show_menu(menu_data):
-        for i, menu in enumerate(menu_data):
-            print("%d: %s" % (i + 1, list(menu.values())[0]))
+            try:
+                choice = int(input(">> "))
+                if choice == len(self.current_menu) + 1:
+                    pass
+                choice_menu = self.current_menu[choice-1]  # 获取选择的菜单项
+                if choice_menu[2]:  # 子菜单是最终菜单
+                    cmd = input("# ").strip()
+                    self.client.sendall(cmd.encode("utf-8"))
+                    result = self.get_response()
+                    if result["code"] == 200:
+                        print(result["data"])
+                        self.show_menu()  # 显示最后一次的菜单
+                    else:
+                        print("错误代码[%d]：%s" % (result["code"], result["data"]))
+                else:
+                    self.position = choice_menu[0]  # 获取菜单项中的ID
+                    self.show_menu()  # 显示下级菜单
+            except KeyError:
+                print("无效选择，请重新输入")
 
     def get_response(self):
         """

@@ -13,7 +13,6 @@ class MyHandler(socketserver.BaseRequestHandler):
         self.auth_user = None
         self.member_info = None
         self.menu = {}
-        self.location = None
         super().__init__(request, client_address, server)
         print("客户端已连接", self.client_address)
 
@@ -28,7 +27,7 @@ class MyHandler(socketserver.BaseRequestHandler):
                         break
                     else:
                         print("客户端登陆失败", str(self.client_address))
-            except ConnectionResetError:
+            except (ConnectionResetError, ConnectionAbortedError, ConnectionError):
                 print("客户端连接断开", self.client_address)
                 break
         else:
@@ -52,19 +51,20 @@ class MyHandler(socketserver.BaseRequestHandler):
             if password == m_pass:
                 self.auth_user = user
                 self.member_info = handler.get_member_info(user.member_id, user.role)
-                # 认证成功发送用户信息到客户端，状态码200
-                send_status = self.data_transfer([self.auth_user.__repr__(), self.member_info.__repr__()], 200)
+                self.menu = handler.get_menu(self.auth_user.id, pid=None)
+                # 认证成功发送用户信息到客户端
+                send_status = self.data_transfer([self.auth_user.__repr__(), self.member_info.__repr__(), self.menu])
                 if send_status:
                     return True
                 else:
                     return False
             else:
                 self.login_times += 1
-                self.data_transfer("密码错误", 403)  # 认证失败，状态码403
+                self.data_transfer("密码错误", code=403)  # 认证失败，状态码403
                 return False
         else:
             self.login_times += 1
-            self.data_transfer("用户名不存在", 403)  # 认证失败，状态码403
+            self.data_transfer("用户名不存在", code=403)  # 认证失败，状态码403
             return False
 
     def main(self):
@@ -77,28 +77,18 @@ class MyHandler(socketserver.BaseRequestHandler):
             print("[%s]同学已登陆" % self.member_info.name)
         else:
             exit("账户信息异常")
-        menu = self.show_menu()
-        self.data_transfer(menu, data_type="menu")
         while True:
-            choice = self.request.recv(1024).decode("utf-8")
-            self.data_transfer("Your choice is %s" % choice, data_type="data")
+            msg = self.request.recv(1024).decode("utf-8")
+            result, code = self.cmd_handler(msg)
+            self.data_transfer(result, code)
 
-    def show_menu(self, _pid=None):
-        self.menu = handler.get_menu(self.auth_user.id, _pid)
-        menu_list = []
-        if self.menu:
-            for mid, pid, code, name in self.menu:
-                if pid == _pid:
-                    menu_list.append({code: name})
-            return menu_list
-        else:
-            return "没有有效权限"
+    def cmd_handler(self, msg):
+        return "%s 处理成功" % msg, 200  # 测试
 
-    def data_transfer(self, data, data_type="data", code=200):
+    def data_transfer(self, data, code=200):
         """
         发送消息到客户端
         :param data: 要发送的消息，能被json序列号的类型
-        :param data_type: 消息类型，分为菜单消息和数据消息
         :param code: 消息状态码，可参考HTTP协议
         :return: True Or False
         """
@@ -106,7 +96,6 @@ class MyHandler(socketserver.BaseRequestHandler):
             if data or code:
                 msg = json.dumps({
                     "code": code,
-                    "data_type": data_type,
                     "data": data
                 })
                 # print(msg)
