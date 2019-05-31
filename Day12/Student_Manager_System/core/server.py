@@ -4,6 +4,7 @@
 
 from base_setup import *
 from core import db_handler
+from core.cmds import Cmds
 import json
 
 
@@ -13,6 +14,7 @@ class MyHandler(socketserver.BaseRequestHandler):
         self.auth_user = None
         self.member_info = None
         self.menu = {}
+        self.cmds = Cmds()
         super().__init__(request, client_address, server)
         print("客户端已连接", self.client_address)
 
@@ -83,7 +85,13 @@ class MyHandler(socketserver.BaseRequestHandler):
             self.data_transfer(result, code)
 
     def cmd_handler(self, msg):
-        return "%s 处理成功" % msg, 200  # 测试
+        args = msg.split()
+        cmd = args.pop(0)
+        if hasattr(self.cmds, cmd):
+            cmd_func = getattr(self.cmds, cmd)
+            return cmd_func(args)
+        else:
+            return "方法不存在", 404
 
     def data_transfer(self, data, code=200):
         """

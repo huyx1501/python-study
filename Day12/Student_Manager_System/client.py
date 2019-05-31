@@ -94,13 +94,14 @@ class SmsClient(object):
                     choice_menu = self.current_menu[choice - 1]  # 获取选择的菜单项
                 if choice_menu[2]:  # 子菜单是最终菜单（菜单中有code项）
                     cmd = input("# ").strip()
-                    self.client.sendall(cmd.encode("utf-8"))
+                    data = choice_menu[2] + " " + cmd
+                    self.client.sendall(data.encode("utf-8"))
                     result = self.get_response()
                     if result["code"] == 200:
                         print(result["data"])
-                        self.show_menu()  # 重新显示最后一层的菜单
                     else:
                         print("错误代码[%d]：%s" % (result["code"], result["data"]))
+                    self.show_menu()  # 重新显示最后一层的菜单
                 else:
                     self.position = choice_menu[0]  # 获取菜单项中的ID
                     self.show_menu()  # 显示下级菜单
