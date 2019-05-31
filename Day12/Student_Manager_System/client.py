@@ -71,27 +71,40 @@ class SmsClient(object):
                 self.current_menu.append(menu)
         for i, m in enumerate(self.current_menu):
             print("%d: %s" % (i + 1, m[3]))
+        else:
+            if self.current_menu[0][1]:  # 存在PID则显示返回上一级
+                print("%d: %s" % (len(self.current_menu) + 1, "返回上一级"))
+                print("%d: %s" % (len(self.current_menu) + 2, "返回主菜单"))
 
     def interaction(self):
         while True:
             try:
                 choice = int(input(">> "))
-                if choice == len(self.current_menu) + 1:
-                    pass
-                choice_menu = self.current_menu[choice-1]  # 获取选择的菜单项
-                if choice_menu[2]:  # 子菜单是最终菜单
+                if choice == len(self.current_menu) + 1:  # 返回上一级
+                    for menu in self.menu:
+                        if menu[0] == self.position:  # 找出当前位置的菜单
+                            self.position = menu[1]  # 获取当前位置菜单的上级菜单ID
+                    self.show_menu()
+                    continue
+                elif choice == len(self.current_menu) + 2:  # 返回主菜单:
+                    self.position = None
+                    self.show_menu()
+                    continue
+                else:
+                    choice_menu = self.current_menu[choice - 1]  # 获取选择的菜单项
+                if choice_menu[2]:  # 子菜单是最终菜单（菜单中有code项）
                     cmd = input("# ").strip()
                     self.client.sendall(cmd.encode("utf-8"))
                     result = self.get_response()
                     if result["code"] == 200:
                         print(result["data"])
-                        self.show_menu()  # 显示最后一次的菜单
+                        self.show_menu()  # 重新显示最后一层的菜单
                     else:
                         print("错误代码[%d]：%s" % (result["code"], result["data"]))
                 else:
                     self.position = choice_menu[0]  # 获取菜单项中的ID
                     self.show_menu()  # 显示下级菜单
-            except KeyError:
+            except (ValueError, IndexError):
                 print("无效选择，请重新输入")
 
     def get_response(self):
@@ -100,7 +113,6 @@ class SmsClient(object):
         :return: 返回收到的消息
         """
         try:
-
             result_length = int(self.client.recv(1024).decode("utf-8"))  # 服务器返回数据长度
             if result_length:
                 self.client.sendall("ACK".encode("utf-8"))  # 发送应答报文
