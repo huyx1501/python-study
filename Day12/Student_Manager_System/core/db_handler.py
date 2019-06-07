@@ -15,26 +15,34 @@ class Handler(object):
         if name:
             return self.session.query(User).filter(User.username == name).first()
 
-    def get_member_info(self, member_id, role_id):
-        if not member_id or not role_id:
-            return
-        if role_id == 1:  # 管理员
-            return self.session.query(SysUser).filter(SysUser.id == member_id).first()
-        if role_id == 2:  # 教师
-            return self.session.query(Teacher).filter(Teacher.id == member_id).first()
-        if role_id == 3:  # 学生
-            return self.session.query(Student).filter(Student.id == member_id).first()
+    def get_member_info(self, member_id):
+        if member_id:
+            return self.session.query(UserInfo).filter(UserInfo.id == member_id).first()
 
-    def get_menu(self, user_id, pid):
+    def get_menu(self, user_id, group_id, pid):
         if not pid:
-            return self.session.query(Menu.id, Menu.pid, Menu.code, Menu.name).filter(Menu.id == MenuRole.menu_id)\
-                                                                              .filter(MenuRole.user_id == user_id)\
-                                                                              .filter(Menu.status == 1).all()
+            menu = self.session.query(Menu.id, Menu.pid, Menu.code, Menu.name)\
+                .filter(Menu.id == UserRole.menu_id)\
+                .filter(UserRole.user_id == user_id)\
+                .filter(Menu.status == 1)\
+                .union(self.session.query(Menu.id, Menu.pid, Menu.code, Menu.name)
+                       .filter(Menu.id == GroupRole.menu_id)
+                       .filter(GroupRole.group_id == group_id)
+                       .filter(Menu.status == 1)) \
+                .order_by(Menu.id).all()
         else:
-            return self.session.query(Menu.id, Menu.pid, Menu.code, Menu.name).filter(Menu.id == MenuRole.menu_id)\
-                                                                              .filter(MenuRole.user_id == user_id)\
-                                                                              .filter(Menu.status == 1)\
-                                                                              .filter(Menu.pid == pid).all()
+            menu = self.session.query(Menu.id, Menu.pid, Menu.code, Menu.name)\
+                .filter(Menu.id == UserRole.menu_id)\
+                .filter(UserRole.user_id == user_id)\
+                .filter(Menu.status == 1)\
+                .filter(Menu.pid == pid)\
+                .union(self.session.query(Menu.id, Menu.pid, Menu.code, Menu.name)
+                       .filter(Menu.id == GroupRole.menu_id)
+                       .filter(GroupRole.group_id == group_id)
+                       .filter(Menu.status == 1)
+                       .filter(Menu.pid == pid))\
+                .order_by(Menu.id).all()
+        return menu
 
     def get_school(self):
         pass

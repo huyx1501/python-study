@@ -16,9 +16,9 @@ class MyHandler(socketserver.BaseRequestHandler):
         self.menu = {}
         self.cmds = Cmds()
         super().__init__(request, client_address, server)
-        print("客户端已连接", self.client_address)
 
     def handle(self):
+        print("客户端已连接", self.client_address)
         while self.login_times < 3:  # 登陆失败次数达到3次中断连接
             try:
                 if not self.auth_user:
@@ -52,8 +52,8 @@ class MyHandler(socketserver.BaseRequestHandler):
             m_pass = user.password
             if password == m_pass:
                 self.auth_user = user
-                self.member_info = handler.get_member_info(user.member_id, user.role)
-                self.menu = handler.get_menu(self.auth_user.id, pid=None)
+                self.member_info = handler.get_member_info(user.member_id)
+                self.menu = handler.get_menu(self.auth_user.id, self.auth_user.group_id, pid=None)
                 # 认证成功发送用户信息到客户端
                 send_status = self.data_transfer([self.auth_user.__repr__(), self.member_info.__repr__(), self.menu])
                 if send_status:
@@ -70,7 +70,7 @@ class MyHandler(socketserver.BaseRequestHandler):
             return False
 
     def main(self):
-        user_type = self.auth_user.role
+        user_type = self.auth_user.group_id
         if user_type == 1:
             print("管理员[%s]已登陆" % self.member_info.name)
         elif user_type == 2:

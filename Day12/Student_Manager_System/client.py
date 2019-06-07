@@ -69,9 +69,15 @@ class SmsClient(object):
         for menu in self.menu:
             if menu[1] == self.position:  # 仅显示当前位置下的子菜单
                 self.current_menu.append(menu)
-        for i, m in enumerate(self.current_menu):
-            print("%d: %s" % (i + 1, m[3]))
+        if self.current_menu:
+            for i, m in enumerate(self.current_menu):
+                print("%d: %s" % (i + 1, m[3]))
+            else:
+                if self.current_menu[0][1]:  # 存在PID则显示返回上一级
+                    print("%d: %s" % (len(self.current_menu) + 1, "返回上一级"))
+                    print("%d: %s" % (len(self.current_menu) + 2, "返回主菜单"))
         else:
+            print("无可用菜单！")
             if self.current_menu[0][1]:  # 存在PID则显示返回上一级
                 print("%d: %s" % (len(self.current_menu) + 1, "返回上一级"))
                 print("%d: %s" % (len(self.current_menu) + 2, "返回主菜单"))
