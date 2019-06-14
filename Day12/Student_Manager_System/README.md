@@ -47,9 +47,12 @@ README.md(本文档）
     }
 
     ```
-2. 启动服务器端startup.py
+    
+2. 运行base_setup.py初始化数据库
 
-3. 修改客户端client.py中服务器配置信息
+3. 启动服务器端startup.py
+
+4. 修改客户端client.py中服务器配置信息
     ```
     server = {
         "host": "127.0.0.1",        # 服务器连接地址
