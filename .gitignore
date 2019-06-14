@@ -106,3 +106,4 @@ venv.bak/
 #Pycharm
 .idea/
 .ipynb_checkpoints/
+Day12/Student_Manager_System/install.lock
